@@ -11,6 +11,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import prisma from './lib/prisma';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -71,6 +72,26 @@ app.post('/api/echo', (req: Request, res: Response) => {
     echo: message,
     receivedAt: new Date().toISOString()
   });
+});
+
+/**
+ * Test Database Connection
+ * GET /api/users/count
+ * Returns the number of users in database
+ */
+app.get('/api/users/count', async (_req: Request, res: Response) => {
+  try {
+    const count = await prisma.user.count();
+    res.json({ 
+      count,
+      message: 'Database connected successfully!' 
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Database connection failed',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 });
 
 // ========== ERROR HANDLERS ==========

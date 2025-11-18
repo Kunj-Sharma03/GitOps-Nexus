@@ -1,0 +1,128 @@
+// Prisma Schema for GitOps DevTools
+// Defines database structure for users, repos, jobs, and sessions
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ========== USER MODEL ==========
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  passwordHash  String?   // For local auth
+  githubId      String?   @unique // For OAuth
+  avatar        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  repos         Repo[]
+  jobs          Job[]
+  sessions      Session[]
+  sshKeys       SshKey[]
+  
+  @@map("users")
+}
+
+// ========== REPOSITORY MODEL ==========
+model Repo {
+  id            String    @id @default(cuid())
+  name          String
+  gitUrl        String
+  localPath     String    // Where repo is cloned on server
+  defaultBranch String    @default("main")
+  description   String?
+  isPrivate     Boolean   @default(false)
+  lastSyncedAt  DateTime?
+  
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  jobs          Job[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@unique([userId, name])
+  @@map("repos")
+}
+
+// ========== JOB MODEL (CI/CD Jobs) ==========
+model Job {
+  id            String    @id @default(cuid())
+  branch        String
+  commands      String[]  // Array of commands to run
+  status        JobStatus @default(QUEUED)
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  logsPath      String?   // Path to log file
+  artifactsPath String?   // Path to build artifacts
+  exitCode      Int?
+  errorMessage  String?
+  
+  repoId        String
+  repo          Repo      @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  
+  createdAt     DateTime  @default(now())
+  
+  @@index([repoId, status])
+  @@index([userId, status])
+  @@map("jobs")
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCESS
+  FAILED
+  CANCELLED
+  TIMEOUT
+}
+
+// ========== SESSION MODEL (Interactive Containers) ==========
+model Session {
+  id            String        @id @default(cuid())
+  containerId   String?       // Docker container ID
+  status        SessionStatus @default(STARTING)
+  expiresAt     DateTime
+  
+  repoId        String?
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime      @default(now())
+  
+  @@index([userId, status])
+  @@map("sessions")
+}
+
+enum SessionStatus {
+  STARTING
+  RUNNING
+  STOPPED
+  EXPIRED
+}
+
+// ========== SSH KEY MODEL (Private Repos) ==========
+model SshKey {
+  id            String   @id @default(cuid())
+  name          String
+  publicKey     String   @db.Text
+  privateKeyEnc String   @db.Text // Encrypted private key
+  fingerprint   String
+  
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime @default(now())
+  
+  @@unique([userId, fingerprint])
+  @@map("ssh_keys")
+}

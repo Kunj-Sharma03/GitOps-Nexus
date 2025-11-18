@@ -35,11 +35,8 @@ model Repo {
   id            String    @id @default(cuid())
   name          String
   gitUrl        String
-  localPath     String    // Where repo is cloned on server
   defaultBranch String    @default("main")
-  description   String?
-  isPrivate     Boolean   @default(false)
-  lastSyncedAt  DateTime?
+  localPath     String?
   
   userId        String
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)

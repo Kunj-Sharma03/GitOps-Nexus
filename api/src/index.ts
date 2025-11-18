@@ -1,25 +1,18 @@
 /**
  * API Server - Entry Point
- * 
- * This is your backend server that will handle:
- * - REST API requests from the frontend
- * - Authentication
- * - Database operations
- * - WebSocket connections (later)
  */
 
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import prisma from './lib/prisma';
+import authRoutes from './routes/auth';
 
-// Load environment variables from .env file
 dotenv.config();
 
 const app = express();
 
 // ========== MIDDLEWARE ==========
-// Middleware runs BEFORE your routes (like a pipeline)
 
 // 1. CORS - allows frontend to call this API
 app.use(cors());
@@ -33,7 +26,7 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   next();
 });
 
-// ========== ROUTES ==========
+app.use('/api/auth', authRoutes);
 
 /**
  * Health Check - tells you if the server is alive

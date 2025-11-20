@@ -19,6 +19,7 @@ model User {
   passwordHash  String?   // For local auth
   githubId      String?   @unique // For OAuth
   avatar        String?
+  githubAccessToken String? @db.Text
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
@@ -26,6 +27,7 @@ model User {
   jobs          Job[]
   sessions      Session[]
   sshKeys       SshKey[]
+  refreshTokens RefreshToken[]
   
   @@map("users")
 }
@@ -122,4 +124,16 @@ model SshKey {
   
   @@unique([userId, fingerprint])
   @@map("ssh_keys")
+}
+
+// Refresh tokens for auth (rotating refresh tokens)
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
 }

@@ -2,6 +2,12 @@ import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { hashPassword, comparePassword, generateToken } from '../lib/auth';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
+import { Octokit } from '@octokit/rest';
+import crypto from 'crypto';
+
+const GITHUB_OAUTH_CLIENT_ID = process.env.GITHUB_OAUTH_CLIENT_ID;
+const GITHUB_OAUTH_CLIENT_SECRET = process.env.GITHUB_OAUTH_CLIENT_SECRET;
+const OAUTH_REDIRECT_URI = process.env.GITHUB_OAUTH_REDIRECT || 'http://localhost:3000/api/auth/github/callback';
 
 const router = Router();
 
@@ -75,6 +81,111 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
     res.json({ user });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch user' });
+  }
+});
+
+// Start GitHub OAuth flow
+router.get('/github', (req: Request, res: Response) => {
+  if (!GITHUB_OAUTH_CLIENT_ID) return res.status(500).json({ error: 'OAuth not configured' });
+  const state = crypto.randomBytes(8).toString('hex');
+  const url = `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(GITHUB_OAUTH_CLIENT_ID)}&scope=user:email&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}&state=${state}`;
+  // NOTE: in production you'd store state in user session to verify on callback
+  res.redirect(url);
+});
+
+// OAuth callback
+router.get('/github/callback', async (req: Request, res: Response) => {
+  try {
+    const { code } = req.query;
+    if (!code || !GITHUB_OAUTH_CLIENT_ID || !GITHUB_OAUTH_CLIENT_SECRET) {
+      return res.status(400).json({ error: 'Missing code or OAuth not configured' });
+    }
+
+    // Exchange code for access token
+    const tokenResp = await fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: GITHUB_OAUTH_CLIENT_ID, client_secret: GITHUB_OAUTH_CLIENT_SECRET, code, redirect_uri: OAUTH_REDIRECT_URI })
+    });
+    const tokenJson = await tokenResp.json();
+    const accessToken = tokenJson.access_token;
+    if (!accessToken) return res.status(400).json({ error: 'Failed to obtain access token' });
+
+    const octokit = new Octokit({ auth: accessToken });
+    const userResp = await octokit.request('GET /user');
+    const gh = userResp.data as any;
+
+    // get primary email if possible
+    let email = gh.email;
+    try {
+      const emailsResp = await octokit.request('GET /user/emails');
+      const emails = emailsResp.data as any[];
+      const primary = emails.find(e => e.primary) || emails.find(e => e.verified) || emails[0];
+      if (primary && primary.email) email = primary.email;
+    } catch (_) {
+      // ignore
+    }
+
+    // create or update user
+    const githubId = String(gh.id);
+    const name = gh.name || gh.login;
+    const avatar = gh.avatar_url;
+
+    let user = await prisma.user.findUnique({ where: { githubId } });
+    if (!user) {
+      // if email exists, try to link by email
+      if (email) {
+        const byEmail = await prisma.user.findUnique({ where: { email } });
+        if (byEmail) {
+          user = await prisma.user.update({ where: { id: byEmail.id }, data: { githubId, avatar, name } });
+        }
+      }
+    }
+
+    if (!user) {
+      // create full user record
+      user = await prisma.user.create({ data: { githubId, email: email || undefined, name, avatar } });
+    }
+
+    // create refresh token
+    const refreshToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+    // Use dynamic access to avoid type mismatches if Prisma client typings are stale
+    await (prisma as any).refreshToken.create({ data: { token: refreshToken, userId: user.id, expiresAt } });
+
+    const jwtToken = generateToken({ userId: user.id, email: user.email || '' });
+
+    // Return tokens; in a real app redirect to frontend with cookie or hash
+    res.json({ user, token: jwtToken, refreshToken });
+  } catch (error) {
+    res.status(500).json({ error: 'OAuth failed', details: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Refresh access token using refresh token
+router.post('/refresh', async (req: Request, res: Response) => {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken) return res.status(400).json({ error: 'refreshToken required' });
+
+    const stored = await (prisma as any).refreshToken.findUnique({ where: { token: refreshToken }, include: { user: true } });
+    if (!stored) return res.status(401).json({ error: 'Invalid refresh token' });
+    if (stored.expiresAt < new Date()) {
+      await (prisma as any).refreshToken.delete({ where: { id: stored.id } });
+      return res.status(401).json({ error: 'Refresh token expired' });
+    }
+
+    // rotate token
+    await (prisma as any).refreshToken.delete({ where: { id: stored.id } });
+    const newToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    await (prisma as any).refreshToken.create({ data: { token: newToken, userId: stored.userId, expiresAt } });
+
+    const jwtToken = generateToken({ userId: stored.user.id, email: stored.user.email || '' });
+    res.json({ token: jwtToken, refreshToken: newToken });
+  } catch (error) {
+    res.status(500).json({ error: 'Refresh failed' });
   }
 });
 

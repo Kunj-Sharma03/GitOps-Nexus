@@ -1,0 +1,82 @@
+# GitOps DevTools — 8-Week Roadmap (Mon–Fri)
+
+This file tracks the 8-week roadmap as discrete daily tasks and the current status for each task. Use it as a checklist for the project and update statuses as you complete items.
+
+> Legend: ✅ completed | 🔶 in-progress | ⬜ not-started
+
+---
+
+## Week 1 — Project setup, core repo + auth + DB
+
+- Day 1 (Mon) — Repo & tooling: Initialize monorepo, TypeScript, ESLint, Prettier, Husky, top-level README. ✅
+- Day 2 (Tue) — Postgres + ORM: Docker Postgres, Prisma schema (User, Repo, Job), migrations. ✅
+- Day 3 (Wed) — Auth endpoints: JWT signup/login/me, bcrypt hashing, validation. ✅
+- Day 4 (Thu) — OAuth & sessions: GitHub OAuth flow, refresh tokens, session handling. ✅
+- Day 5 (Fri) — Health & Docker Compose: health endpoints, `.env.example`, Docker Compose (Postgres, Redis). ✅
+
+## Week 2 — Repo browser + Git integration
+
+- Day 6 (Mon) — Add repo endpoint: `POST /api/repos` to add git URL & DB record. ✅
+- Day 7 (Tue) — Branch listing: `GET /repos/:id/branches` (GitHub API or local git). ✅
+- Day 8 (Wed) — File tree & fetch: `GET /repos/:id/files`, `GET /repos/:id/file-content`. 🔶 in-progress
+- Day 9 (Thu) — Diff/commit endpoints: show diffs between branches/commits. ⬜
+- Day 10 (Fri) — Frontend repo browser: repo list + branch dropdown + file tree. 🔶 in-progress
+
+## Week 3 — Editor with Monaco + save/commit flow
+
+- Day 11 (Mon) — Editor route & Monaco: add editor page and load file content. ⬜
+- Day 12 (Tue) — UI editing flow: editing, autosave, Save button. ⬜
+- Day 13 (Wed) — Commit from backend: write file to disk and commit with author. ⬜
+- Day 14 (Thu) — Conflict detection: optimistic locking & conflict warnings. ⬜
+- Day 15 (Fri) — Commit flow testing: test commit/push flows and unit tests. ⬜
+
+## Week 4 — CI job queue + worker + websocket logs
+
+- Day 16 (Mon) — Job queue & job model: Redis + BullMQ, Job DB model, enqueue endpoint. 🔶 in-progress
+- Day 17 (Tue) — Worker skeleton: worker process to read jobs, update DB, logging. 🔶 in-progress
+- Day 18 (Wed) — Container runner: run jobs in containers, capture logs. ⬜
+- Day 19 (Thu) — Realtime logs: WebSocket (Socket.IO) to stream job logs. ⬜
+- Day 20 (Fri) — Job UI: create job, view status, realtime logs. ⬜
+
+## Week 5 — Ephemeral sandboxes + resource limits
+
+- Day 21 (Mon) — Sandbox design: workspace session model & endpoints. ⬜
+- Day 22 (Tue) — Sandbox runner: ephemeral container creation with resource limits. ⬜
+- Day 23 (Wed) — Sandbox UI: launch sandbox, show status, TTL cleanup. ⬜
+- Day 24 (Thu) — Container security: run non-root, AppArmor/SELinux guidance. ⬜
+- Day 25 (Fri) — Sandbox testing & cleanup: validate cleanup. ⬜
+
+## Week 6 — CI features, artifacts, notifications, UI polish
+
+- Day 26 (Mon) — Artifacts collection: worker archives outputs (local/S3). ⬜
+- Day 27 (Tue) — Job history UI: list past runs, filters, download artifacts. ⬜
+- Day 28 (Wed) — Notifications: email (SendGrid) for job results. ⬜
+- Day 29 (Thu) — UI polish: status color coding, responsive layout. ⬜
+- Day 30 (Fri) — RBAC basics: owner vs collaborator roles. ⬜
+
+## Week 7 — Tests, E2E, docs, robustness
+
+- Day 31 (Mon) — Unit tests: Jest for core backend logic. ⬜
+- Day 32 (Tue) — Integration tests: enqueue -> worker run (mock Docker). ⬜
+- Day 33 (Wed) — E2E tests: Playwright for critical flows. ⬜
+- Day 34 (Thu) — Metrics & logging: Prometheus metrics endpoint. ⬜
+- Day 35 (Fri) — Developer docs: local dev guide, deployment guide, runbook. ⬜
+
+## Week 8 — Deployment, scalability, final polish, release
+
+- Day 36 (Mon) — Full-stack Compose: compose file for api, web, worker, postgres, redis, proxy. ⬜
+- Day 37 (Tue) — HTTPS & proxy: Nginx + Let's Encrypt notes. ⬜
+- Day 38 (Wed) — Security review: rate limits, sanitize inputs, concurrency limits. ⬜
+- Day 39 (Thu) — Final UI polish: onboarding and guided tour. ⬜
+- Day 40 (Fri) — Release checklist: tag, demo, README, 1-page summary. ⬜
+
+---
+
+## Notes & Next Actions
+
+- Current focus: Finish Week2 Day8 (file tree + file-content) and continue Week4 (job queue + worker).
+- Optional: Create small dev-only OAuth login for local testing, or wire enqueueing of metadata job after repo creation.
+
+---
+
+_Last updated: 2025-11-20_

@@ -171,8 +171,9 @@ router.get('/github/callback', async (req: Request, res: Response) => {
 
     const jwtToken = generateToken({ userId: user.id, email: user.email || '' });
 
-    // Return tokens; in a real app redirect to frontend with cookie or hash
-    res.json({ user, token: jwtToken, refreshToken });
+    // Redirect to frontend with token
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    res.redirect(`${frontendUrl}?token=${jwtToken}`);
   } catch (error) {
     res.status(500).json({ error: 'OAuth failed', details: error instanceof Error ? error.message : String(error) });
   }

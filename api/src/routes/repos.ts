@@ -220,7 +220,9 @@ router.get('/:id/diff', async (req: AuthRequest, res: Response) => {
 // POST /:id/commit -> create or update a file on given branch
 router.post('/:id/commit', async (req: AuthRequest, res: Response) => {
   try {
-    const { path, content, branch, message } = req.body;
+    const { path, content, branch, message, dryRun } = req.body;
+    console.log(`[repos] POST /${req.params.id}/commit by user=${req.userId} email=${req.userEmail} dryRun=${!!dryRun}`);
+    console.log('[repos] request body:', { path, branch, message, contentLength: typeof content === 'string' ? Buffer.byteLength(content, 'utf8') : null });
     if (!path || typeof content !== 'string') return res.status(400).json({ error: 'path and content are required in body' });
 
     const repo = await prisma.repo.findFirst({ where: { id: req.params.id, userId: req.userId! } });
@@ -233,17 +235,28 @@ router.post('/:id/commit', async (req: AuthRequest, res: Response) => {
     // Use the user's GitHub access token if available so commits are performed as the user
     const user = await prisma.user.findUnique({ where: { id: req.userId! } });
     const token = user?.githubAccessToken || undefined;
+    console.log(`[repos] using token for commit: ${token ? 'user-token' : (process.env.GITHUB_TOKEN ? 'env-token' : 'none')}`);
 
-    const result = await createOrUpdateFile(repo.gitUrl, path, content, branch || repo.defaultBranch, message || `Update ${path} via API`, { name: req.userEmail || 'dev', email: req.userEmail || 'dev@example.com' }, token);
+    let result: any;
+    if (dryRun) {
+      console.log('[repos] dry-run mode - skipping actual commit');
+      result = { dryRun: true, path, contentLength: Buffer.byteLength(content, 'utf8'), branch: branch || repo.defaultBranch, message: message || `Update ${path} via API` };
+    } else {
+      result = await createOrUpdateFile(repo.gitUrl, path, content, branch || repo.defaultBranch, message || `Update ${path} via API`, { name: req.userEmail || 'dev', email: req.userEmail || 'dev@example.com' }, token);
+      console.log('[repos] createOrUpdateFile result:', { content: !!result?.content, commitSha: result?.commit?.sha });
+    }
 
-    // Invalidate caches for this repo so subsequent reads return fresh data
-    try {
-      const parsed = parseGitHubUrl(repo.gitUrl);
-      cacheDelPrefix(`tree:${parsed.owner}/${parsed.repo}:`);
-      cacheDelPrefix(`file:${parsed.owner}/${parsed.repo}:`);
-      cacheDelPrefix(`readme:${parsed.owner}/${parsed.repo}:`);
-    } catch (e) {
-      // ignore cache errors
+    // Invalidate caches for this repo so subsequent reads return fresh data (only for real commits)
+    if (!dryRun) {
+      try {
+        const parsed = parseGitHubUrl(repo.gitUrl);
+        cacheDelPrefix(`tree:${parsed.owner}/${parsed.repo}:`);
+        cacheDelPrefix(`file:${parsed.owner}/${parsed.repo}:`);
+        cacheDelPrefix(`readme:${parsed.owner}/${parsed.repo}:`);
+        console.log(`[repos] invalidated cache for ${parsed.owner}/${parsed.repo}`);
+      } catch (e) {
+        // ignore cache errors
+      }
     }
 
     return res.json({ result });

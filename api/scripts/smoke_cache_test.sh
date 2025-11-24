@@ -4,10 +4,10 @@
 
 API_URL=${API_URL:-http://localhost:3000}
 # Default JWT/REPO_ID provided for convenience; override by setting env vars when running.
-JWT=${JWT:-'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'}
+JWT=${JWT:-'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbWk0Z2lrczIwMDAwZ2VhYzdyemE4cWsxIiwiZW1haWwiOiJkZXZAZXhhbXBsZS5jb20iLCJpYXQiOjE3NjM4MDIxMDUsImV4cCI6MTc2NDQwNjkwNX0.JiPZUcjUGtZQq6M7aByyFC0ILM1UVat4hjJsnxVLUlQ'}
 REPO_ID=${REPO_ID:-'cmi4gjou50002geac3cupstjd'}
-BRANCH=${BRANCH:-main}
-FILE_PATH=${FILE_PATH:-README.md}
+BRANCH=${BRANCH:-canary}
+FILE_PATH=${FILE_PATH:-readme.md}
 
 if ! command -v jq >/dev/null 2>&1; then
   echo "Please install 'jq' to run this script (e.g. apt install jq or brew install jq)"

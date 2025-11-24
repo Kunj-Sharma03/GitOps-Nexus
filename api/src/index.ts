@@ -8,6 +8,7 @@ import dotenv from 'dotenv';
 import prisma from './lib/prisma';
 import authRoutes from './routes/auth';
 import repoRoutes from './routes/repos';
+import debugRoutes from './routes/debug';
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/repos', repoRoutes);
+app.use('/api/debug', debugRoutes);
 
 /**
  * Health Check - tells you if the server is alive

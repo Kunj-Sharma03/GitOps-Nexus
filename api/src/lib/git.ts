@@ -290,13 +290,14 @@ export async function compareCommits(gitUrl: string, base: string, head: string)
   }
 }
 
-export async function createOrUpdateFile(gitUrl: string, filePath: string, content: string, branch: string = 'main', message: string = 'Update file', author?: { name?: string; email?: string }) {
+export async function createOrUpdateFile(gitUrl: string, filePath: string, content: string, branch: string = 'main', message: string = 'Update file', author?: { name?: string; email?: string }, token?: string) {
   try {
     const { owner, repo } = parseGitHubUrl(gitUrl);
+    const client = token ? new Octokit({ auth: token }) : octokit;
     const encoded = Buffer.from(content, 'utf8').toString('base64');
     let sha: string | undefined;
     try {
-      const existing = await withRetries(() => octokit.repos.getContent({ owner, repo, path: filePath, ref: branch }));
+      const existing = await withRetries(() => client.repos.getContent({ owner, repo, path: filePath, ref: branch }));
       if (existing && 'data' in existing && existing.data && (existing.data as any).sha) sha = (existing.data as any).sha;
     } catch (err: any) {
       // not found -> will create
@@ -307,7 +308,7 @@ export async function createOrUpdateFile(gitUrl: string, filePath: string, conte
     if (sha) params.sha = sha;
     if (author) params.committer = { name: author.name || 'dev', email: author.email || 'dev@example.com' };
 
-    const resp = await withRetries(() => octokit.repos.createOrUpdateFileContents(params));
+    const resp = await withRetries(() => client.repos.createOrUpdateFileContents(params));
     return { content: resp.data.content, commit: resp.data.commit };
   } catch (error) {
     throw new Error(`Failed to create/update file: ${error instanceof Error ? error.message : 'Unknown error'}`);

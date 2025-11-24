@@ -226,7 +226,26 @@ router.post('/:id/commit', async (req: AuthRequest, res: Response) => {
     const repo = await prisma.repo.findFirst({ where: { id: req.params.id, userId: req.userId! } });
     if (!repo) return res.status(404).json({ error: 'Repo not found' });
 
-    const result = await createOrUpdateFile(repo.gitUrl, path, content, branch || repo.defaultBranch, message || `Update ${path} via API`, { name: req.userEmail || 'dev', email: req.userEmail || 'dev@example.com' });
+    // Safety: limit file size to 200KB
+    const maxSize = Number(process.env.COMMIT_MAX_BYTES || 200 * 1024);
+    if (Buffer.byteLength(content, 'utf8') > maxSize) return res.status(400).json({ error: 'File too large' });
+
+    // Use the user's GitHub access token if available so commits are performed as the user
+    const user = await prisma.user.findUnique({ where: { id: req.userId! } });
+    const token = user?.githubAccessToken || undefined;
+
+    const result = await createOrUpdateFile(repo.gitUrl, path, content, branch || repo.defaultBranch, message || `Update ${path} via API`, { name: req.userEmail || 'dev', email: req.userEmail || 'dev@example.com' }, token);
+
+    // Invalidate caches for this repo so subsequent reads return fresh data
+    try {
+      const parsed = parseGitHubUrl(repo.gitUrl);
+      cacheDelPrefix(`tree:${parsed.owner}/${parsed.repo}:`);
+      cacheDelPrefix(`file:${parsed.owner}/${parsed.repo}:`);
+      cacheDelPrefix(`readme:${parsed.owner}/${parsed.repo}:`);
+    } catch (e) {
+      // ignore cache errors
+    }
+
     return res.json({ result });
   } catch (error) {
     return res.status(500).json({ error: 'Failed to create/update file', details: error instanceof Error ? error.message : 'Unknown error' });

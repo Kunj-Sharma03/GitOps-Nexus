@@ -88,7 +88,10 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
 router.get('/github', (req: Request, res: Response) => {
   if (!GITHUB_OAUTH_CLIENT_ID) return res.status(500).json({ error: 'OAuth not configured' });
   const state = crypto.randomBytes(8).toString('hex');
-  const url = `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(GITHUB_OAUTH_CLIENT_ID)}&scope=user:email&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}&state=${state}`;
+  // Request repo scope so the app can create commits on behalf of the user when needed.
+  // For public-repo-only use cases consider 'public_repo' instead of 'repo'.
+  const scope = encodeURIComponent('user:email repo');
+  const url = `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(GITHUB_OAUTH_CLIENT_ID)}&scope=${scope}&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}&state=${state}`;
   // NOTE: in production you'd store state in user session to verify on callback
   res.redirect(url);
 });
@@ -131,20 +134,32 @@ router.get('/github/callback', async (req: Request, res: Response) => {
     const name = gh.name || gh.login;
     const avatar = gh.avatar_url;
 
+    // Persist or link user and store the GitHub access token so we can act on
+    // the user's behalf (create commits) in future API calls.
     let user = await prisma.user.findUnique({ where: { githubId } });
     if (!user) {
       // if email exists, try to link by email
       if (email) {
         const byEmail = await prisma.user.findUnique({ where: { email } });
         if (byEmail) {
-          user = await prisma.user.update({ where: { id: byEmail.id }, data: { githubId, avatar, name } });
+          user = await prisma.user.update({ where: { id: byEmail.id }, data: { githubId, avatar, name, githubAccessToken: accessToken } });
         }
       }
     }
 
     if (!user) {
-      // create full user record
-      user = await prisma.user.create({ data: { githubId, email: email || undefined, name, avatar } });
+      // create full user record and save token
+      user = await prisma.user.create({ data: { githubId, email: email || undefined, name, avatar, githubAccessToken: accessToken } });
+    } else {
+      // Ensure token is up to date on the existing user record
+      await prisma.user.update({ where: { id: user.id }, data: { githubAccessToken: accessToken, avatar, name } });
+      // refresh user object
+      user = await prisma.user.findUnique({ where: { id: user.id } }) as any;
+    }
+
+    // ensure user exists now
+    if (!user) {
+      return res.status(500).json({ error: 'Failed to create or link user' });
     }
 
     // create refresh token

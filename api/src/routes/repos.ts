@@ -1,7 +1,8 @@
 import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
-import { getBranches, getFileTree, readFile, findReadme } from '../lib/git';
+import { getBranches, getFileTree, readFile, findReadme, parseGitHubUrl } from '../lib/git';
+import { cacheDelPrefix, getCacheStats, invalidateRepoCache } from '../lib/cache';
 
 const router = Router();
 
@@ -39,7 +40,15 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         userId: req.userId!
       }
     });
-    
+    // Invalidate any cached trees or file contents for this repo
+    try {
+      const parsed = parseGitHubUrl(gitUrl);
+      // invalidate cache for this repo (tree, files, readme)
+      invalidateRepoCache(parsed.owner, parsed.repo);
+    } catch (e) {
+      // ignore cache invalidation errors
+    }
+
     res.status(201).json({ repo });
   } catch (error) {
     res.status(500).json({ 
@@ -103,6 +112,20 @@ router.get('/:id/branches', async (req: AuthRequest, res: Response) => {
     });
   }
 });
+
+// GET /api/repos/cache/stats - returns in-memory cache stats (hits/misses/keys)
+router.get('/cache/stats', async (_req: AuthRequest, res: Response) => {
+  try {
+    const stats = getCacheStats();
+    res.json({ stats });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to get cache stats' });
+  }
+});
+
+// TODO: When adding endpoints that mutate repo contents (commits/writes),
+// call `invalidateRepoCache(owner, repo)` after the commit completes so stale
+// file trees and file contents are not served from cache.
 
 router.get('/:id/files', async (req: AuthRequest, res: Response) => {
   try {
@@ -178,6 +201,25 @@ router.get('/:id/file-content', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// POST /:id/refresh-cache -> force invalidate cached trees/files/readme for a repo
+router.post('/:id/refresh-cache', async (req: AuthRequest, res: Response) => {
+  try {
+    const repo = await prisma.repo.findFirst({ where: { id: req.params.id, userId: req.userId! } });
+    if (!repo) return res.status(404).json({ error: 'Repo not found' });
+    try {
+      const parsed = parseGitHubUrl(repo.gitUrl);
+      cacheDelPrefix(`tree:${parsed.owner}/${parsed.repo}:`);
+      cacheDelPrefix(`file:${parsed.owner}/${parsed.repo}:`);
+      cacheDelPrefix(`readme:${parsed.owner}/${parsed.repo}:`);
+    } catch (e) {
+      // ignore any cache errors
+    }
+    return res.status(204).send();
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to refresh cache' });
+  }
+});
+
 router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const repo = await prisma.repo.findFirst({
@@ -192,6 +234,14 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
     }
     
     await prisma.repo.delete({ where: { id: repo.id } });
+    try {
+      const parsed = parseGitHubUrl(repo.gitUrl);
+      cacheDelPrefix(`tree:${parsed.owner}/${parsed.repo}:`);
+      cacheDelPrefix(`file:${parsed.owner}/${parsed.repo}:`);
+      cacheDelPrefix(`readme:${parsed.owner}/${parsed.repo}:`);
+    } catch (e) {
+      // ignore
+    }
     
     res.json({ message: 'Repo deleted' });
   } catch (error) {

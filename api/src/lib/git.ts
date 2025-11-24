@@ -3,6 +3,7 @@ import simpleGit, { SimpleGit } from 'simple-git';
 import path from 'path';
 import os from 'os';
 import fs from 'fs-extra';
+import { cacheGetOrMiss, cacheSet } from './cache';
 
 const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN
@@ -78,6 +79,10 @@ export async function getBranches(gitUrl: string): Promise<string[]> {
 export async function getFileTree(gitUrl: string, branch: string = 'main'): Promise<any[]> {
   try {
     const { owner, repo } = parseGitHubUrl(gitUrl);
+    const cacheKey = `tree:${owner}/${repo}:${branch}`;
+    const cacheTtl = Number(process.env.FILE_TREE_CACHE_MS || 120000);
+    const cached = cacheGetOrMiss<any[]>(cacheKey);
+    if (cached) return cached;
     // Resolve branch commit -> tree sha (retry with repo default branch if requested ref is missing)
     let treeSha: string | undefined;
     try {
@@ -93,9 +98,12 @@ export async function getFileTree(gitUrl: string, branch: string = 'main'): Prom
 
     const { data } = await withRetries(() => octokit.git.getTree({ owner, repo, tree_sha: treeSha!, recursive: 'true' }));
 
-    return data.tree
+    const result = data.tree
       .filter((item: any) => item.type === 'blob')
       .map((item: any) => ({ path: item.path, size: item.size, sha: item.sha }));
+
+    cacheSet(cacheKey, result, cacheTtl);
+    return result;
   } catch (error) {
     throw new Error(`Failed to get file tree: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
@@ -104,6 +112,11 @@ export async function getFileTree(gitUrl: string, branch: string = 'main'): Prom
 export async function readFile(gitUrl: string, filePath: string, branch: string = 'main'): Promise<string> {
   try {
     const { owner, repo } = parseGitHubUrl(gitUrl);
+    const ref = branch || 'main';
+    const cacheKey = `file:${owner}/${repo}:${ref}:${filePath}`;
+    const cacheTtl = Number(process.env.FILE_CONTENT_CACHE_MS || 60000);
+    const cached = cacheGetOrMiss<string>(cacheKey);
+    if (cached) return cached;
     // Try the requested ref, fallback to repo default branch if the ref doesn't exist
     try {
       const { data } = await withRetries(() => octokit.repos.getContent({ owner, repo, path: filePath, ref: branch }));
@@ -115,7 +128,11 @@ export async function readFile(gitUrl: string, filePath: string, branch: string 
         const repoResp = await withRetries(() => octokit.repos.get({ owner, repo }));
         const defaultBranch = repoResp.data.default_branch;
         const { data } = await withRetries(() => octokit.repos.getContent({ owner, repo, path: filePath, ref: defaultBranch }));
-        if ('content' in data) return Buffer.from(data.content, 'base64').toString('utf-8');
+        if ('content' in data) {
+          const content = Buffer.from(data.content, 'base64').toString('utf-8');
+          cacheSet(cacheKey, content, cacheTtl);
+          return content;
+        }
         throw new Error('File not found or is a directory');
       }
       throw err;
@@ -127,6 +144,10 @@ export async function readFile(gitUrl: string, filePath: string, branch: string 
 
 export async function findReadme(gitUrl: string, branch?: string): Promise<{ path: string; content: string }> {
   const { owner, repo } = parseGitHubUrl(gitUrl);
+  const cacheKey = `readme:${owner}/${repo}:${branch || 'default'}`;
+  const cacheTtl = Number(process.env.FILE_CONTENT_CACHE_MS || 60000);
+  const cached = cacheGetOrMiss<{ path: string; content: string }>(cacheKey);
+  if (cached) return cached;
 
   // Determine branch to use
   let refBranch = branch;
@@ -141,7 +162,10 @@ export async function findReadme(gitUrl: string, branch?: string): Promise<{ pat
     try {
       const { data } = await withRetries(() => octokit.repos.getContent({ owner, repo, path: candidate, ref: refBranch }));
       if ('content' in data) {
-        return { path: candidate, content: Buffer.from(data.content, 'base64').toString('utf-8') };
+        const content = Buffer.from(data.content, 'base64').toString('utf-8');
+        const result = { path: candidate, content };
+        cacheSet(cacheKey, result, cacheTtl);
+        return result;
       }
     } catch (err) {
       // ignore and try next
@@ -156,7 +180,9 @@ export async function findReadme(gitUrl: string, branch?: string): Promise<{ pat
       const rootReadme = root.data.find((e: any) => e.type === 'file' && e.name.toLowerCase().startsWith('readme'));
       if (rootReadme) {
         const content = await readFile(gitUrl, rootReadme.path, refBranch);
-        return { path: rootReadme.path, content };
+        const result = { path: rootReadme.path, content };
+        cacheSet(cacheKey, result, cacheTtl);
+        return result;
       }
 
       // common directories to check
@@ -171,7 +197,12 @@ export async function findReadme(gitUrl: string, branch?: string): Promise<{ pat
             try {
               const p = `${dir}/${candidate}`;
               const { data } = await withRetries(() => octokit.repos.getContent({ owner, repo, path: p, ref: refBranch }));
-              if ('content' in data) return { path: p, content: Buffer.from(data.content, 'base64').toString('utf-8') };
+              if ('content' in data) {
+                const content = Buffer.from(data.content, 'base64').toString('utf-8');
+                const result = { path: p, content };
+                cacheSet(cacheKey, result, cacheTtl);
+                return result;
+              }
             } catch (_) {
               // ignore
             }
@@ -188,7 +219,12 @@ export async function findReadme(gitUrl: string, branch?: string): Promise<{ pat
                     const p = `packages/${sub.name}/${candidate}`;
                     try {
                       const { data } = await withRetries(() => octokit.repos.getContent({ owner, repo, path: p, ref: refBranch }));
-                      if ('content' in data) return { path: p, content: Buffer.from(data.content, 'base64').toString('utf-8') };
+                      if ('content' in data) {
+                        const content = Buffer.from(data.content, 'base64').toString('utf-8');
+                        const result = { path: p, content };
+                        cacheSet(cacheKey, result, cacheTtl);
+                        return result;
+                      }
                     } catch (_) {
                       // ignore
                     }
@@ -212,7 +248,10 @@ export async function findReadme(gitUrl: string, branch?: string): Promise<{ pat
     const readmeEntry = tree.find((t: any) => t.path.split('/').pop().toLowerCase().startsWith('readme'));
     if (readmeEntry) {
       const content = await readFile(gitUrl, readmeEntry.path, refBranch);
-      return { path: readmeEntry.path, content };
+      const result = { path: readmeEntry.path, content };
+      // cache the tree-fallback README so subsequent requests are fast
+      try { cacheSet(`readme:${owner}/${repo}:${refBranch}`, result, cacheTtl); } catch (_) { }
+      return result;
     }
   } catch (err) {
     // ignore; we'll surface a controlled error below

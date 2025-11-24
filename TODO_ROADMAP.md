@@ -19,6 +19,20 @@ This file tracks the 8-week roadmap as discrete daily tasks and the current stat
 - Day 6 (Mon) — Add repo endpoint: `POST /api/repos` to add git URL & DB record. ✅
 - Day 7 (Tue) — Branch listing: `GET /repos/:id/branches` (GitHub API or local git). ✅
 - Day 8 (Wed) — File tree & fetch: `GET /repos/:id/files`, `GET /repos/:id/file-content`. 🔶 in-progress
+ - Day 8 (Wed) — File tree & fetch: `GET /repos/:id/files`, `GET /repos/:id/file-content`. 🔶 in-progress
+
+### Caching notes (Day 8)
+
+- Env vars:
+	- `FILE_TREE_CACHE_MS` (ms) — TTL for directory tree cache (default 120000)
+	- `FILE_CONTENT_CACHE_MS` (ms) — TTL for file content/readme cache (default 60000)
+	- `CACHE_LOG=true` — enable console debug logs for cache hits/misses
+
+- API:
+	- `POST /api/repos/:id/refresh-cache` — force invalidate cached trees, files, and README for a repo (returns 204)
+
+- Dev helper:
+	- `api/scripts/smoke_cache_test.sh` — smoke-test script to exercise files, file-content, README discovery and refresh flows. Provide `JWT` and `REPO_ID` when running.
 - Day 9 (Thu) — Diff/commit endpoints: show diffs between branches/commits. ⬜
 - Day 10 (Fri) — Frontend repo browser: repo list + branch dropdown + file tree. 🔶 in-progress
 

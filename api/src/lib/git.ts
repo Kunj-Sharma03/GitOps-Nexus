@@ -278,6 +278,42 @@ export async function getRepoInfo(gitUrl: string) {
   }
 }
 
+export async function compareCommits(gitUrl: string, base: string, head: string) {
+  try {
+    const { owner, repo } = parseGitHubUrl(gitUrl);
+    const { data } = await withRetries(() => octokit.repos.compareCommits({ owner, repo, base, head }));
+    // Return a simplified list of changed files
+    const files = (data.files || []).map((f: any) => ({ filename: f.filename, status: f.status, additions: f.additions, deletions: f.deletions, changes: f.changes }));
+    return { ahead_by: data.ahead_by, behind_by: data.behind_by, total_commits: data.total_commits, files };
+  } catch (error) {
+    throw new Error(`Failed to compare commits: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+export async function createOrUpdateFile(gitUrl: string, filePath: string, content: string, branch: string = 'main', message: string = 'Update file', author?: { name?: string; email?: string }) {
+  try {
+    const { owner, repo } = parseGitHubUrl(gitUrl);
+    const encoded = Buffer.from(content, 'utf8').toString('base64');
+    let sha: string | undefined;
+    try {
+      const existing = await withRetries(() => octokit.repos.getContent({ owner, repo, path: filePath, ref: branch }));
+      if (existing && 'data' in existing && existing.data && (existing.data as any).sha) sha = (existing.data as any).sha;
+    } catch (err: any) {
+      // not found -> will create
+      if (err && err.status && err.status !== 404) throw err;
+    }
+
+    const params: any = { owner, repo, path: filePath, message, content: encoded, branch };
+    if (sha) params.sha = sha;
+    if (author) params.committer = { name: author.name || 'dev', email: author.email || 'dev@example.com' };
+
+    const resp = await withRetries(() => octokit.repos.createOrUpdateFileContents(params));
+    return { content: resp.data.content, commit: resp.data.commit };
+  } catch (error) {
+    throw new Error(`Failed to create/update file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
 export async function cloneRepoTemporary(gitUrl: string): Promise<string> {
   const tempDir = path.join(os.tmpdir(), `repo-${Date.now()}`);
   

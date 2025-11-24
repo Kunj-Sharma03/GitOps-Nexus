@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
-import { getBranches, getFileTree, readFile, findReadme, parseGitHubUrl } from '../lib/git';
+import { getBranches, getFileTree, readFile, findReadme, parseGitHubUrl, compareCommits, createOrUpdateFile } from '../lib/git';
 import { cacheDelPrefix, getCacheStats, invalidateRepoCache } from '../lib/cache';
 
 const router = Router();
@@ -198,6 +198,38 @@ router.get('/:id/file-content', async (req: AuthRequest, res: Response) => {
       error: 'Failed to read file',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
+  }
+});
+
+// GET /:id/diff?base=...&head=... -> compare two refs/commits
+router.get('/:id/diff', async (req: AuthRequest, res: Response) => {
+  try {
+    const { base, head } = req.query;
+    if (!base || !head) return res.status(400).json({ error: 'base and head query parameters are required' });
+
+    const repo = await prisma.repo.findFirst({ where: { id: req.params.id, userId: req.userId! } });
+    if (!repo) return res.status(404).json({ error: 'Repo not found' });
+
+    const diff = await compareCommits(repo.gitUrl, base as string, head as string);
+    return res.json({ diff });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to compute diff', details: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+// POST /:id/commit -> create or update a file on given branch
+router.post('/:id/commit', async (req: AuthRequest, res: Response) => {
+  try {
+    const { path, content, branch, message } = req.body;
+    if (!path || typeof content !== 'string') return res.status(400).json({ error: 'path and content are required in body' });
+
+    const repo = await prisma.repo.findFirst({ where: { id: req.params.id, userId: req.userId! } });
+    if (!repo) return res.status(404).json({ error: 'Repo not found' });
+
+    const result = await createOrUpdateFile(repo.gitUrl, path, content, branch || repo.defaultBranch, message || `Update ${path} via API`, { name: req.userEmail || 'dev', email: req.userEmail || 'dev@example.com' });
+    return res.json({ result });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to create/update file', details: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
 

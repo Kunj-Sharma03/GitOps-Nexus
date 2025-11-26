@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getBranches } from '../lib/api'
 
-export default function BranchSelector({ repoId, value, onChange }: { repoId: string | null, value?: string, onChange: (b: string) => void }) {
+export default function BranchSelector({ repoId, value, onChange, showLabel = true }: { repoId: string | null, value?: string, onChange: (b: string) => void, showLabel?: boolean }) {
   const [branches, setBranches] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -18,7 +18,7 @@ export default function BranchSelector({ repoId, value, onChange }: { repoId: st
 
   return (
     <div className="flex items-center gap-3">
-      <span className="text-xs text-dystopia-muted font-medium">BRANCH</span>
+      {showLabel && <span className="text-xs text-dystopia-muted font-medium">BRANCH</span>}
       <div className="relative w-full">
         <select 
           className="block w-full bg-dystopia-bg/50 border border-dystopia-border rounded-lg text-dystopia-text p-2 text-xs focus:border-dystopia-primary focus:ring-1 focus:ring-dystopia-primary focus:outline-none transition-all appearance-none cursor-pointer hover:bg-dystopia-card/50" 

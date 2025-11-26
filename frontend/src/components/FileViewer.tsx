@@ -1,4 +1,4 @@
-export default function FileViewer({ content, path }: { content?: string, path?: string }) {
+export default function FileViewer({ content, path, readOnly }: { content?: string, path?: string, readOnly?: boolean }) {
   if (!path) return <div className="p-8 text-dystopia-muted text-center flex flex-col items-center justify-center h-full border border-dashed border-dystopia-border opacity-50">
     <span className="text-4xl mb-2">⚠</span>
     <span>AWAITING INPUT DATA</span>
@@ -14,11 +14,11 @@ export default function FileViewer({ content, path }: { content?: string, path?:
         </pre>
       </div>
       <div className="p-3 border-t border-dystopia-border/50 bg-dystopia-card/30 text-[10px] text-dystopia-muted flex justify-between items-center backdrop-blur-sm">
-         <span className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-dystopia-primary/50"></span>
-            EOF
-         </span>
-         <span className="font-mono opacity-70">{content.length} bytes</span>
+        <span className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-dystopia-primary/50"></span>
+          {readOnly ? 'READ-ONLY' : 'EOF'}
+        </span>
+        <span className="font-mono opacity-70">{content ? content.length : 0} bytes</span>
       </div>
     </div>
   )

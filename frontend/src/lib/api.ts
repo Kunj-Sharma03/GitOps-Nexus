@@ -48,4 +48,15 @@ export async function postCommit(repoId: string, path: string, content: string, 
   return apiFetch(`/repos/${repoId}/commit`, { method: 'POST', body: JSON.stringify(body) })
 }
 
+export async function getCommits(repoId: string, path: string, limit = 20) {
+  const q = `?path=${encodeURIComponent(path)}&limit=${encodeURIComponent(String(limit))}`
+  return apiFetch(`/repos/${repoId}/commits${q}`)
+}
+
+export async function postRevert(repoId: string, path: string, sha: string, branch?: string, dryRun = true) {
+  const body: any = { path, sha, dryRun }
+  if (branch) body.branch = branch
+  return apiFetch(`/repos/${repoId}/revert`, { method: 'POST', body: JSON.stringify(body) })
+}
+
 export default apiFetch

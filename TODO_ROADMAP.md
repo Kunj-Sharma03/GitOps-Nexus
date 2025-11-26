@@ -36,9 +36,9 @@ This file tracks the 8-week roadmap as discrete daily tasks and the current stat
 - Day 9 (Thu) — Diff/commit endpoints: show diffs between branches/commits. ⬜
 - Day 10 (Fri) — Frontend repo browser: repo list + branch dropdown + file tree. 🔶 in-progress
 
-## Week 3 — Editor with Monaco + save/commit flow
+# Week 3 — Editor with Monaco + save/commit flow
 
-- Day 11 (Mon) — Editor route & Monaco: add editor page and load file content. ⬜
+- Day 11 (Mon) — Editor route & Monaco: add editor page and load file content. ✅
 - Day 12 (Tue) — UI editing flow: editing, autosave, Save button. ⬜
 - Day 13 (Wed) — Commit from backend: write file to disk and commit with author. ⬜
 - Day 14 (Thu) — Conflict detection: optimistic locking & conflict warnings. ⬜

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import RepoBrowser from './pages/RepoBrowser'
 import Login from './pages/Login'
+import Editor from './pages/Editor'
 import './App.css'
 
 function App() {
@@ -24,7 +26,12 @@ function App() {
   }
 
   return (
-    <RepoBrowser />
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<RepoBrowser />} />
+        <Route path="/editor" element={<Editor />} />
+      </Routes>
+    </BrowserRouter>
   )
 }
 

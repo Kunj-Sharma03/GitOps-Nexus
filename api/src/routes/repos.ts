@@ -1,7 +1,8 @@
 import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
-import { getBranches, getFileTree, readFile, findReadme, parseGitHubUrl, compareCommits, createOrUpdateFile } from '../lib/git';
+import { getBranches, getFileTree, readFile, findReadme, parseGitHubUrl, compareCommits, createOrUpdateFile, listCommits } from '../lib/git';
+import { getFileAtRef } from '../lib/git';
 import { cacheDelPrefix, getCacheStats, invalidateRepoCache } from '../lib/cache';
 
 const router = Router();
@@ -73,14 +74,8 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 
 router.get('/:id', async (req: AuthRequest, res: Response) => {
   try {
-    const repo = await prisma.repo.findFirst({
-      where: { 
-        id: req.params.id,
-        userId: req.userId!
-      }
-    });
-    
-    if (!repo) {
+    const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
+    if (!repo || String(repo.userId) !== String(req.userId)) {
       return res.status(404).json({ error: 'Repo not found' });
     }
     
@@ -92,24 +87,33 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
 
 router.get('/:id/branches', async (req: AuthRequest, res: Response) => {
   try {
-    const repo = await prisma.repo.findFirst({
-      where: { 
-        id: req.params.id,
-        userId: req.userId!
-      }
-    });
-    
-    if (!repo) {
-      return res.status(404).json({ error: 'Repo not found' });
-    }
-    
+    const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
+    if (!repo || String(repo.userId) !== String(req.userId)) return res.status(404).json({ error: 'Repo not found' });
+
     const branches = await getBranches(repo.gitUrl);
     res.json({ branches });
   } catch (error) {
+    console.error('[repos] GET /:id/branches error', error);
     res.status(500).json({ 
       error: 'Failed to fetch branches',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
+  }
+});
+
+// GET /:id/commits?path=...&limit=20 -> list recent commits for a file or repo
+router.get('/:id/commits', async (req: AuthRequest, res: Response) => {
+  try {
+    const { path, limit } = req.query;
+    const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
+    if (!repo || String(repo.userId) !== String(req.userId)) return res.status(404).json({ error: 'Repo not found' });
+
+    const n = limit ? Math.min(200, Number(limit)) : 20;
+    const commits = await listCommits(repo.gitUrl, path as string | undefined, n);
+    return res.json({ commits });
+  } catch (error) {
+    console.error('[repos] GET /:id/commits error', error);
+    return res.status(500).json({ error: 'Failed to list commits', details: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
 
@@ -131,20 +135,13 @@ router.get('/:id/files', async (req: AuthRequest, res: Response) => {
   try {
     const { branch } = req.query;
     
-    const repo = await prisma.repo.findFirst({
-      where: { 
-        id: req.params.id,
-        userId: req.userId!
-      }
-    });
-    
-    if (!repo) {
-      return res.status(404).json({ error: 'Repo not found' });
-    }
-    
+    const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
+    if (!repo || String(repo.userId) !== String(req.userId)) return res.status(404).json({ error: 'Repo not found' });
+
     const files = await getFileTree(repo.gitUrl, (branch as string) || repo.defaultBranch);
     res.json({ files });
   } catch (error) {
+    console.error('[repos] GET /:id/files error', error);
     res.status(500).json({ 
       error: 'Failed to fetch files',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -156,16 +153,8 @@ router.get('/:id/file-content', async (req: AuthRequest, res: Response) => {
   try {
     const { path, branch } = req.query;
 
-    const repo = await prisma.repo.findFirst({
-      where: { 
-        id: req.params.id,
-        userId: req.userId!
-      }
-    });
-
-    if (!repo) {
-      return res.status(404).json({ error: 'Repo not found' });
-    }
+    const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
+    if (!repo || String(repo.userId) !== String(req.userId)) return res.status(404).json({ error: 'Repo not found' });
 
     if (!path) {
       // No path provided -> try to find README automatically
@@ -194,6 +183,7 @@ router.get('/:id/file-content', async (req: AuthRequest, res: Response) => {
       throw err;
     }
   } catch (error) {
+    console.error('[repos] GET /:id/file-content error', error);
     res.status(500).json({ 
       error: 'Failed to read file',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -207,12 +197,13 @@ router.get('/:id/diff', async (req: AuthRequest, res: Response) => {
     const { base, head } = req.query;
     if (!base || !head) return res.status(400).json({ error: 'base and head query parameters are required' });
 
-    const repo = await prisma.repo.findFirst({ where: { id: req.params.id, userId: req.userId! } });
-    if (!repo) return res.status(404).json({ error: 'Repo not found' });
+    const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
+    if (!repo || String(repo.userId) !== String(req.userId)) return res.status(404).json({ error: 'Repo not found' });
 
     const diff = await compareCommits(repo.gitUrl, base as string, head as string);
     return res.json({ diff });
   } catch (error) {
+    console.error('[repos] GET /:id/diff error', error);
     return res.status(500).json({ error: 'Failed to compute diff', details: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
@@ -225,8 +216,8 @@ router.post('/:id/commit', async (req: AuthRequest, res: Response) => {
     console.log('[repos] request body:', { path, branch, message, contentLength: typeof content === 'string' ? Buffer.byteLength(content, 'utf8') : null });
     if (!path || typeof content !== 'string') return res.status(400).json({ error: 'path and content are required in body' });
 
-    const repo = await prisma.repo.findFirst({ where: { id: req.params.id, userId: req.userId! } });
-    if (!repo) return res.status(404).json({ error: 'Repo not found' });
+    const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
+    if (!repo || String(repo.userId) !== String(req.userId)) return res.status(404).json({ error: 'Repo not found' });
 
     // Safety: limit file size to 200KB
     const maxSize = Number(process.env.COMMIT_MAX_BYTES || 200 * 1024);
@@ -261,15 +252,65 @@ router.post('/:id/commit', async (req: AuthRequest, res: Response) => {
 
     return res.json({ result });
   } catch (error) {
+    console.error('[repos] POST /:id/commit error', error);
     return res.status(500).json({ error: 'Failed to create/update file', details: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+// POST /:id/revert -> revert a file to a specific commit SHA
+router.post('/:id/revert', async (req: AuthRequest, res: Response) => {
+  try {
+    const { path, sha, branch, dryRun } = req.body as { path?: string; sha?: string; branch?: string; dryRun?: boolean };
+    if (!path || !sha) return res.status(400).json({ error: 'path and sha are required in body' });
+
+    const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
+    if (!repo || String(repo.userId) !== String(req.userId)) return res.status(404).json({ error: 'Repo not found' });
+
+    // Fetch file content at the specified commit sha
+    let oldContent: string;
+    try {
+      oldContent = await getFileAtRef(repo.gitUrl, path, sha);
+    } catch (err: any) {
+      return res.status(400).json({ error: 'Failed to read file at specified commit', details: err instanceof Error ? err.message : String(err) });
+    }
+
+    // Dry-run: report what would happen
+    if (dryRun !== undefined ? !!dryRun : true) {
+      return res.json({ dryRun: true, path, sha, branch: branch || repo.defaultBranch, contentPreviewLength: Buffer.byteLength(oldContent, 'utf8') });
+    }
+
+    // Perform actual revert commit
+    try {
+      // Use user's token if available
+      const user = await prisma.user.findUnique({ where: { id: req.userId! } });
+      const token = user?.githubAccessToken || undefined;
+      const message = `Revert ${path} to ${sha} via API`;
+      const result = await createOrUpdateFile(repo.gitUrl, path, oldContent, branch || repo.defaultBranch, message, { name: req.userEmail || 'dev', email: req.userEmail || 'dev@example.com' }, token);
+
+      // invalidate cache for this repo
+      try {
+        const parsed = parseGitHubUrl(repo.gitUrl);
+        cacheDelPrefix(`tree:${parsed.owner}/${parsed.repo}:`);
+        cacheDelPrefix(`file:${parsed.owner}/${parsed.repo}:`);
+        cacheDelPrefix(`readme:${parsed.owner}/${parsed.repo}:`);
+      } catch (_) {}
+
+      return res.json({ result });
+    } catch (err: any) {
+      console.error('[repos] POST /:id/revert error', err);
+      return res.status(500).json({ error: 'Failed to create revert commit', details: err instanceof Error ? err.message : String(err) });
+    }
+  } catch (error) {
+    console.error('[repos] POST /:id/revert outer error', error);
+    return res.status(500).json({ error: 'Failed to process revert request', details: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
 
 // POST /:id/refresh-cache -> force invalidate cached trees/files/readme for a repo
 router.post('/:id/refresh-cache', async (req: AuthRequest, res: Response) => {
   try {
-    const repo = await prisma.repo.findFirst({ where: { id: req.params.id, userId: req.userId! } });
-    if (!repo) return res.status(404).json({ error: 'Repo not found' });
+    const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
+    if (!repo || String(repo.userId) !== String(req.userId)) return res.status(404).json({ error: 'Repo not found' });
     try {
       const parsed = parseGitHubUrl(repo.gitUrl);
       cacheDelPrefix(`tree:${parsed.owner}/${parsed.repo}:`);
@@ -280,22 +321,15 @@ router.post('/:id/refresh-cache', async (req: AuthRequest, res: Response) => {
     }
     return res.status(204).send();
   } catch (error) {
+    console.error('[repos] POST /:id/refresh-cache error', error);
     return res.status(500).json({ error: 'Failed to refresh cache' });
   }
 });
 
 router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
-    const repo = await prisma.repo.findFirst({
-      where: { 
-        id: req.params.id,
-        userId: req.userId!
-      }
-    });
-    
-    if (!repo) {
-      return res.status(404).json({ error: 'Repo not found' });
-    }
+    const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
+    if (!repo || String(repo.userId) !== String(req.userId)) return res.status(404).json({ error: 'Repo not found' });
     
     await prisma.repo.delete({ where: { id: repo.id } });
     try {

@@ -17,6 +17,7 @@ export default function UnifiedExplorer({ onRepoSelect, onFileSelect }: {
 }) {
   const [items, setItems] = useState<ExplorerItem[]>([])
   const [loading, setLoading] = useState(false)
+  const [query, setQuery] = useState<string>('')
 
   useEffect(() => {
     setLoading(true)
@@ -136,23 +137,27 @@ export default function UnifiedExplorer({ onRepoSelect, onFileSelect }: {
 
   const renderTree = (items: ExplorerItem[], level: number = 0, repoIndex?: number, folderPath: string[] = [], currentRepo?: ExplorerItem) => {
     return items.map((item, index) => (
-      <div key={`${item.name}-${level}-${index}`}>
+      <div key={`${item.name}-${level}-${index}`} role="treeitem" aria-expanded={item.type === 'file' ? undefined : !!item.expanded} tabIndex={0} onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          const target = e.currentTarget as HTMLElement
+          target.click()
+        }
+      }}>
         <div
-          className={`flex items-center gap-2 px-2 py-1 text-sm cursor-pointer hover:bg-dystopia-primary/10 rounded ${
-            level === 0 ? 'font-semibold' : ''
-          }`}
-          style={{ paddingLeft: `${level * 16 + 8}px` }}
+          className={`
+            group flex items-center gap-2 px-2 py-1 text-xs cursor-pointer rounded-sm transition-colors select-none
+            ${level === 0 ? 'mb-1 mt-2 font-bold text-dystopia-text/90 hover:bg-dystopia-card/50' : 'hover:bg-dystopia-primary/10 text-dystopia-muted hover:text-dystopia-text'}
+          `}
+          style={{ paddingLeft: `${level * 12 + 8}px` }}
           onClick={() => {
             if (item.type === 'repo') {
               toggleRepo(index)
             } else if (item.type === 'folder') {
               toggleFolder(repoIndex!, [...folderPath, item.name])
             } else if (item.type === 'file' && item.path) {
-              // For files, use the current repo context or find it in the top-level items
               const repo = currentRepo || items[repoIndex || 0]
               if (repo && repo.repoId) {
-                console.log('File selected:', item.path, 'in repo:', repo.repoId)
-                // Ensure the repo is selected first, then the file
                 onRepoSelect(repo.repo)
                 onFileSelect(repo.repoId, item.path)
               }
@@ -160,36 +165,25 @@ export default function UnifiedExplorer({ onRepoSelect, onFileSelect }: {
           }}
         >
           {/* Icon */}
-          <span className="text-dystopia-accent w-4 text-center">
+          <span className={`w-4 flex justify-center shrink-0 ${item.type === 'repo' ? 'text-dystopia-primary' : item.type === 'folder' ? 'text-dystopia-accent/70' : 'text-dystopia-muted/70'}`}>
             {item.type === 'repo' ? (
-              item.expanded ? '📂' : '📁'
+               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z"></path></svg>
             ) : item.type === 'folder' ? (
-              item.expanded ? '📂' : '📁'
+               <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path></svg>
             ) : (
-              '📄'
+               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
             )}
           </span>
           
-          {/* Expand/collapse arrow for folders and repos */}
-          {(item.type === 'repo' || item.type === 'folder') && (
-            <span className="text-dystopia-muted text-xs w-3">
-              {item.expanded ? '▼' : '▶'}
-            </span>
-          )}
-          
           {/* Name */}
-          <span className={`flex-1 ${
-            item.type === 'repo' ? 'text-dystopia-primary' :
-            item.type === 'folder' ? 'text-dystopia-accent' :
-            'text-dystopia-text'
-          }`}>
+          <span className="flex-1 truncate">
             {item.name}
           </span>
-          
-          {/* Repo metadata */}
-          {item.type === 'repo' && (
-            <span className="text-xs text-dystopia-muted">
-              {item.repo?.defaultBranch || 'main'}
+
+          {/* Chevron for expandable items */}
+          {(item.type === 'repo' || item.type === 'folder') && (
+            <span className={`text-[10px] text-dystopia-muted transition-transform duration-200 ${item.expanded ? 'rotate-90' : ''}`}>
+              ▶
             </span>
           )}
         </div>
@@ -218,23 +212,57 @@ export default function UnifiedExplorer({ onRepoSelect, onFileSelect }: {
     )
   }
 
-    return (
-      <div className="h-full overflow-y-auto">
-      {items.length === 0 ? (
-        <div className="p-4 text-center text-dystopia-muted text-sm">
-          <div>No repositories found</div>
-          <div className="text-xs mt-2">
-            JWT: {localStorage.getItem('jwt') ? '✓ Present' : '✗ Missing'}
-          </div>
-          <div className="text-xs">
-            Check browser console for errors
-          </div>
+  // Client-side filtering for explorer
+  const filterNode = (node: ExplorerItem, q: string): ExplorerItem | null => {
+    const match = node.name.toLowerCase().includes(q)
+    if (node.type === 'file') {
+      return match ? node : null
+    }
+    const children = node.children ? node.children.map(c => filterNode(c, q)).filter(Boolean) as ExplorerItem[] : []
+    if (match || (children && children.length > 0)) {
+      return { ...node, children, expanded: !!children.length }
+    }
+    return null
+  }
+
+  const displayed = (() => {
+    if (!query.trim()) return items
+    const q = query.toLowerCase()
+    return items.map(repo => filterNode(repo, q)).filter(Boolean) as ExplorerItem[]
+  })()
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="p-2 border-b border-dystopia-border/30">
+        <div className="relative">
+          <input 
+            placeholder="Search..." 
+            aria-label="Search repositories and files"
+            value={query} 
+            onChange={e => setQuery(e.target.value)} 
+            className="w-full bg-black/20 border border-dystopia-border/50 rounded-sm py-1.5 pl-8 pr-2 text-xs text-dystopia-text focus:border-dystopia-primary focus:outline-none placeholder-dystopia-muted/50 transition-colors" 
+          />
+          <svg className="absolute left-2.5 top-2 w-3 h-3 text-dystopia-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
         </div>
-      ) : (
-        <div className="space-y-1">
-          {renderTree(items)}
-        </div>
-      )}
+      </div>
+      
+      <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
+        {loading ? (
+          <div className="p-4 flex flex-col items-center gap-2 text-dystopia-muted/50">
+             <div className="w-4 h-4 border-2 border-dystopia-primary/30 border-t-dystopia-primary rounded-full animate-spin"></div>
+             <span className="text-[10px] uppercase tracking-wider">Scanning...</span>
+          </div>
+        ) : displayed.length === 0 ? (
+          <div className="p-8 text-center text-dystopia-muted/40">
+            <div className="text-2xl mb-2 opacity-20">∅</div>
+            <div className="text-[10px] uppercase tracking-widest">No Data Found</div>
+          </div>
+        ) : (
+          <div className="space-y-0.5">
+            {renderTree(displayed)}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

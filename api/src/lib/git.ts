@@ -10,17 +10,25 @@ const octokit = new Octokit({
 });
 
 // Simple retry helper for transient GitHub API errors
-async function withRetries<T>(fn: () => Promise<T>, attempts = 3, delay = 500): Promise<T> {
+async function withRetries<T>(fn: () => Promise<T>, attempts = 3, delay = 500, timeoutMs = 7000): Promise<T> {
   let lastErr: any;
+  // helper to add a hard timeout to each attempt
+  const withTimeout = <U>(p: Promise<U>, ms: number) => {
+    return Promise.race([
+      p,
+      new Promise<U>((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))
+    ]);
+  };
+
   for (let i = 0; i < attempts; i++) {
     try {
-      return await fn();
+      return await withTimeout(fn(), timeoutMs);
     } catch (err: any) {
       lastErr = err;
-      // if it's a client error (4xx) don't retry except for 404 handling elsewhere
       const status = err && err.status ? err.status : null;
+      // if it's a client error (4xx) don't retry except where callers handle 404
       if (status && status >= 400 && status < 500) break;
-      // exponential backoff
+      // exponential backoff before next attempt
       await new Promise(r => setTimeout(r, delay * Math.pow(2, i)));
     }
   }
@@ -69,8 +77,14 @@ export function parseGitHubUrl(gitUrl: string): RepoInfo {
 export async function getBranches(gitUrl: string): Promise<string[]> {
   try {
     const { owner, repo } = parseGitHubUrl(gitUrl);
-    const { data } = await withRetries(() => octokit.repos.listBranches({ owner, repo }));
-    return data.map(b => b.name);
+    const cacheKey = `branches:${owner}/${repo}`;
+    const cached = cacheGetOrMiss<string[]>(cacheKey);
+    if (cached) return cached;
+
+    const { data } = await withRetries(() => octokit.repos.listBranches({ owner, repo }), 3, 500, 6000);
+    const names = data.map(b => b.name);
+    try { cacheSet(cacheKey, names, Number(process.env.BRANCH_CACHE_MS || 120000)); } catch (_) {}
+    return names;
   } catch (error) {
     throw new Error(`Failed to get branches: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
@@ -290,6 +304,25 @@ export async function compareCommits(gitUrl: string, base: string, head: string)
   }
 }
 
+export async function listCommits(gitUrl: string, filePath?: string, limit = 20) {
+  try {
+    const { owner, repo } = parseGitHubUrl(gitUrl);
+    // Octokit uses pagination; we request up to `limit` items in a single page
+    const params: any = { owner, repo, per_page: Math.min(100, limit) };
+    if (filePath) params.path = filePath;
+    const { data } = await withRetries(() => octokit.repos.listCommits(params));
+    // Map to a small shape used by the frontend
+    return data.slice(0, limit).map((c: any) => ({
+      sha: c.sha,
+      message: c.commit?.message || '',
+      author: (c.commit && c.commit.author && c.commit.author.name) || (c.author && c.author.login) || '',
+      date: (c.commit && c.commit.author && c.commit.author.date) || c.commit?.committer?.date || ''
+    }));
+  } catch (error) {
+    throw new Error(`Failed to list commits: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
 export async function createOrUpdateFile(gitUrl: string, filePath: string, content: string, branch: string = 'main', message: string = 'Update file', author?: { name?: string; email?: string }, token?: string) {
   try {
     const { owner, repo } = parseGitHubUrl(gitUrl);
@@ -313,6 +346,11 @@ export async function createOrUpdateFile(gitUrl: string, filePath: string, conte
   } catch (error) {
     throw new Error(`Failed to create/update file: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
+}
+
+export async function getFileAtRef(gitUrl: string, filePath: string, ref: string) {
+  // Reuse readFile logic by passing the commit sha/ref as branch
+  return readFile(gitUrl, filePath, ref);
 }
 
 export async function cloneRepoTemporary(gitUrl: string): Promise<string> {

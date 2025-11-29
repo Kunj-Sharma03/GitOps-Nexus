@@ -60,4 +60,16 @@ export async function postRevert(repoId: string, path: string, sha: string, bran
   return apiFetch(`/repos/${repoId}/revert`, { method: 'POST', body: JSON.stringify(body) })
 }
 
+export async function getJobs(repoId: string) {
+  return apiFetch(`/repos/${repoId}/jobs`)
+}
+
+export async function createJob(repoId: string, command: string, branch?: string) {
+  return apiFetch(`/repos/${repoId}/jobs`, { method: 'POST', body: JSON.stringify({ command, branch }) })
+}
+
+export async function getJob(jobId: string) {
+  return apiFetch(`/jobs/${jobId}`)
+}
+
 export default apiFetch

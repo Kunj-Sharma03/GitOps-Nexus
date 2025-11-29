@@ -366,6 +366,25 @@ router.post('/:id/jobs', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// GET /:id/jobs -> list jobs for this repo
+router.get('/:id/jobs', async (req: AuthRequest, res: Response) => {
+  try {
+    const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
+    if (!repo || String(repo.userId) !== String(req.userId)) return res.status(404).json({ error: 'Repo not found' });
+
+    const jobs = await prisma.job.findMany({
+      where: { repoId: repo.id },
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    });
+
+    return res.json({ jobs });
+  } catch (err: any) {
+    console.error('[repos] GET /:id/jobs error', err);
+    return res.status(500).json({ error: 'Failed to list jobs' });
+  }
+});
+
 router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });

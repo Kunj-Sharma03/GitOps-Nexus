@@ -36,7 +36,7 @@ export function JobLogs({ jobId, initialLogs = [] }: JobLogsProps) {
   }, [logs]);
 
   return (
-    <div className="bg-gray-900 text-gray-100 p-4 rounded-md font-mono text-sm h-96 overflow-y-auto border border-gray-700 shadow-inner">
+    <div className="bg-gray-900 text-gray-100 p-4 font-mono text-sm h-full overflow-y-auto custom-scrollbar">
       {logs.length === 0 && <div className="text-gray-500 italic">Waiting for logs...</div>}
       {logs.map((line, i) => (
         <div key={i} className="whitespace-pre-wrap break-all">{line}</div>

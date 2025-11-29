@@ -95,6 +95,15 @@ export default function RepoBrowser() {
                   <div className="h-4 w-px bg-dystopia-border"></div>
                   <div className="flex items-center gap-2">
                     <button
+                      onClick={() => navigate(`/jobs?repoId=${selectedRepo.id}`)}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-sm bg-dystopia-accent/10 border border-dystopia-accent/30 text-dystopia-accent text-xs uppercase tracking-wider hover:bg-dystopia-accent/20 transition-all"
+                      aria-label="Open CI Runner"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                      CI/Jobs
+                    </button>
+
+                    <button
                       disabled={!selectedPath}
                       onClick={() => {
                         if (!selectedRepo || !selectedPath) return

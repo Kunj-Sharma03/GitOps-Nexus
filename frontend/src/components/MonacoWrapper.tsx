@@ -32,9 +32,9 @@ export default function MonacoWrapper({
         { token: 'delimiter', foreground: '888888' },
       ],
       colors: {
-        'editor.background': '#050505', // dystopia-bg
+        'editor.background': '#00000000', // Transparent background
         'editor.foreground': '#e0e0e0', // dystopia-text
-        'editor.lineHighlightBackground': '#121212',
+        'editor.lineHighlightBackground': '#ffffff08',
         'editorCursor.foreground': '#00ff41',
         'editor.selectionBackground': '#00ff4133',
         'editorLineNumber.foreground': '#333333',

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import UnifiedExplorer from '../components/UnifiedExplorer'
 import BranchSelector from '../components/BranchSelector'
 import FileViewer from '../components/FileViewer'
-import { getFileContent, createRepo } from '../lib/api'
+import { getFileContent, createRepo, getRepos } from '../lib/api'
 import { buildGitHubUrl, buildPermalink } from '../lib/utils'
 
 import { useNavigate } from 'react-router-dom'
@@ -18,8 +18,16 @@ export default function RepoBrowser() {
   const [newRepoUrl, setNewRepoUrl] = useState('')
   const [isAddingRepo, setIsAddingRepo] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [repoCount, setRepoCount] = useState(0)
 
   const navigate = useNavigate()
+
+  useEffect(() => {
+    getRepos().then((data: any) => {
+      const list = data.repos || data
+      if (Array.isArray(list)) setRepoCount(list.length)
+    }).catch(() => {})
+  }, [refreshKey])
 
   useEffect(() => {
     if (!selectedRepo || !selectedPath) return
@@ -63,37 +71,64 @@ export default function RepoBrowser() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-dystopia-bg text-dystopia-text font-mono overflow-hidden">
-      {/* Header */}
-      <header className="h-12 border-b border-dystopia-border flex items-center px-4 justify-between bg-dystopia-card/80 backdrop-blur-md z-10 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="h-6 w-6 bg-dystopia-primary/20 rounded flex items-center justify-center border border-dystopia-primary/50">
-            <span className="text-dystopia-primary font-bold text-xs">GN</span>
-          </div>
-          <h1 className="text-sm font-bold tracking-widest text-dystopia-text uppercase">
-            GitOps Nexus <span className="text-dystopia-muted font-normal text-[10px] ml-2">v1.0.0</span>
-          </h1>
+    <div className="h-screen flex flex-col bg-transparent text-dystopia-text font-mono overflow-hidden">
+      {/* Hero Header */}
+      <header className="shrink-0 z-10 border-b border-dystopia-border bg-dystopia-card/20 backdrop-blur-md flex flex-col relative overflow-hidden">
+        {/* Decorative background elements for Hero */}
+        <div className="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-dystopia-primary/5 to-transparent pointer-events-none"></div>
+        
+        {/* Top Bar */}
+        <div className="h-8 flex items-center justify-between px-6 border-b border-dystopia-border/20 bg-black/20 backdrop-blur-sm">
+            <div className="flex items-center gap-4">
+                 <div className="flex items-center gap-2">
+                     <div className="w-1.5 h-1.5 bg-dystopia-primary rounded-full animate-pulse"></div>
+                     <span className="text-[10px] text-dystopia-muted uppercase tracking-widest font-mono">System Online</span>
+                 </div>
+                 <span className="text-[10px] text-dystopia-muted/50 uppercase tracking-widest font-mono">|</span>
+                 <span className="text-[10px] text-dystopia-muted uppercase tracking-widest font-mono">v1.0.0-alpha</span>
+            </div>
+            <div className="flex items-center gap-4">
+                 <span className="text-[10px] text-dystopia-muted uppercase tracking-widest font-mono">User: Admin</span>
+            </div>
         </div>
-        <div className="flex items-center gap-4">
-           <button 
-             onClick={() => setIsAddRepoOpen(true)}
-             className="px-3 py-1 bg-dystopia-primary/10 border border-dystopia-primary/30 text-dystopia-primary text-[10px] uppercase tracking-wider hover:bg-dystopia-primary/20 transition-all"
-           >
-             + Add Repo
-           </button>
-           <div className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-dystopia-primary animate-pulse"></span>
-              <span className="text-[10px] text-dystopia-primary uppercase tracking-wider">System Online</span>
-           </div>
-           <div className="h-4 w-px bg-dystopia-border"></div>
-           <div className="text-[10px] text-dystopia-muted uppercase tracking-wider">User: Admin</div>
+
+        {/* Hero Area */}
+        <div className="px-8 py-12 flex items-end justify-between relative z-10">
+            <div>
+                <h1 className="text-6xl font-black tracking-tighter text-white mb-3 drop-shadow-[0_0_25px_rgba(0,255,65,0.2)]">
+                    GITOPS <span className="text-transparent bg-clip-text bg-gradient-to-r from-dystopia-primary via-dystopia-accent to-dystopia-secondary">NEXUS</span>
+                </h1>
+                <div className="flex items-center gap-3">
+                    <div className="h-px w-12 bg-dystopia-primary/50"></div>
+                    <p className="text-dystopia-muted text-xs uppercase tracking-[0.3em] font-mono">
+                        Advanced Repository Orchestration Terminal
+                    </p>
+                </div>
+            </div>
+            
+            <div className="flex items-center gap-8 pb-2">
+                 <div className="text-right hidden md:block">
+                    <div className="text-3xl font-bold text-dystopia-text font-mono">{repoCount}</div>
+                    <div className="text-[10px] text-dystopia-muted uppercase tracking-widest">Linked Repositories</div>
+                 </div>
+                 
+                 <button 
+                     onClick={() => setIsAddRepoOpen(true)}
+                     className="group relative px-6 py-3 bg-dystopia-primary/10 border border-dystopia-primary/50 text-dystopia-primary text-xs font-bold uppercase tracking-[0.2em] hover:bg-dystopia-primary/20 transition-all overflow-hidden"
+                 >
+                     <span className="relative z-10 flex items-center gap-2">
+                        <span>+ Initialize Repo</span>
+                     </span>
+                     <div className="absolute inset-0 bg-dystopia-primary/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                 </button>
+            </div>
         </div>
       </header>
 
       {/* Main Layout */}
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar: Explorer */}
-        <aside className="w-80 flex flex-col border-r border-dystopia-border bg-dystopia-card/20 backdrop-blur-sm">
+        <aside className="w-80 flex flex-col border-r border-dystopia-border bg-dystopia-card/10 backdrop-blur-sm">
           <div className="p-3 border-b border-dystopia-border/50">
             <h3 className="text-[10px] font-bold text-dystopia-muted uppercase tracking-[0.2em] mb-2">Explorer</h3>
             {/* Search is handled inside UnifiedExplorer, but we might want to move it out or style it there. 
@@ -105,11 +140,11 @@ export default function RepoBrowser() {
         </aside>
 
         {/* Main Content Area */}
-        <main className="flex-1 flex flex-col bg-dystopia-bg relative">
+        <main className="flex-1 flex flex-col bg-transparent relative">
           {selectedRepo ? (
             <>
               {/* Context Header (Row 1) */}
-              <div className="h-14 border-b border-dystopia-border flex items-center justify-between px-6 bg-dystopia-card/10 shrink-0">
+              <div className="h-14 border-b border-dystopia-border flex items-center justify-between px-6 bg-dystopia-card/5 shrink-0">
                 <div className="flex items-center gap-4 overflow-hidden">
                    <div className="flex items-center gap-2 text-lg text-dystopia-text whitespace-nowrap tracking-tight">
                       <span className="text-dystopia-primary font-bold">{selectedRepo.name}</span>
@@ -124,7 +159,7 @@ export default function RepoBrowser() {
               </div>
 
               {/* Action Toolbar (Row 2) */}
-              <div className="h-12 border-b border-dystopia-border flex items-center justify-between px-6 bg-dystopia-bg/50 shrink-0">
+              <div className="h-12 border-b border-dystopia-border flex items-center justify-between px-6 bg-dystopia-bg/20 shrink-0">
                 {/* Primary Actions */}
                 <div className="flex items-center gap-3">
                     <button
@@ -213,12 +248,15 @@ export default function RepoBrowser() {
               </div>
             </>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-dystopia-muted/50">
-               <div className="w-16 h-16 border border-dystopia-primary/30 rounded-full flex items-center justify-center mb-6 animate-pulse shadow-[0_0_15px_rgba(0,255,65,0.1)]">
+            <div className="h-full flex flex-col items-center justify-center text-dystopia-muted/50 relative overflow-hidden">
+               {/* Grid Background */}
+               <div className="absolute inset-0 bg-[linear-gradient(rgba(0,255,65,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,255,65,0.03)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_80%)] pointer-events-none"></div>
+               
+               <div className="w-16 h-16 border border-dystopia-primary/30 rounded-full flex items-center justify-center mb-6 animate-pulse shadow-[0_0_15px_rgba(0,255,65,0.1)] relative z-10">
                   <div className="w-2 h-2 bg-dystopia-primary rounded-full"></div>
                </div>
-               <h2 className="text-xl font-bold text-dystopia-text tracking-widest uppercase mb-2">System Ready</h2>
-               <p className="text-xs text-dystopia-muted max-w-md text-center leading-relaxed">
+               <h2 className="text-xl font-bold text-dystopia-text tracking-widest uppercase mb-2 relative z-10">System Ready</h2>
+               <p className="text-xs text-dystopia-muted max-w-md text-center leading-relaxed relative z-10">
                  Select a repository from the explorer to begin.<br/>
                  Access restricted to authorized personnel only.
                </p>

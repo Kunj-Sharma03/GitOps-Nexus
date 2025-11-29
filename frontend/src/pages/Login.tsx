@@ -6,14 +6,14 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-dystopia-bg text-dystopia-text font-mono relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-transparent text-dystopia-text font-mono relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-dystopia-primary/5 rounded-full blur-[100px]"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-dystopia-secondary/5 rounded-full blur-[100px]"></div>
       </div>
 
-      <div className="max-w-md w-full bg-dystopia-card/50 backdrop-blur-xl border border-dystopia-border p-8 rounded-2xl shadow-2xl relative z-10">
+      <div className="max-w-md w-full bg-dystopia-card/30 backdrop-blur-xl border border-dystopia-border p-8 rounded-2xl shadow-2xl relative z-10">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-dystopia-primary to-dystopia-accent tracking-tighter mb-2">
             GitOps_Nexus

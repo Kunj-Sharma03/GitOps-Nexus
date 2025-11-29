@@ -4,6 +4,7 @@ import RepoBrowser from './pages/RepoBrowser'
 import Login from './pages/Login'
 import Editor from './pages/Editor'
 import JobRunner from './pages/JobRunner'
+import ColorBends from './Background/ColorBends'
 import './App.css'
 
 function App() {
@@ -23,16 +24,52 @@ function App() {
   }, [])
 
   if (!token) {
-    return <Login />
+    return (
+      <>
+        <div className="fixed inset-0 z-0">
+          <ColorBends
+            colors={["#ff5c7a", "#8a5cff", "#00ffd1"]}
+            rotation={30}
+            speed={0.3}
+            scale={1.2}
+            frequency={1.4}
+            warpStrength={1.2}
+            mouseInfluence={0.8}
+            parallax={0.6}
+            noise={0.08}
+            transparent
+          />
+        </div>
+        <div className="relative z-10">
+          <Login />
+        </div>
+      </>
+    )
   }
 
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<RepoBrowser />} />
-        <Route path="/editor" element={<Editor />} />
-        <Route path="/jobs" element={<JobRunner />} />
-      </Routes>
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <ColorBends
+          colors={["#ff5c7a", "#8a5cff", "#00ffd1"]}
+          rotation={30}
+          speed={0.3}
+          scale={1.2}
+          frequency={1.4}
+          warpStrength={1.2}
+          mouseInfluence={0.8}
+          parallax={0.6}
+          noise={0.08}
+          transparent
+        />
+      </div>
+      <div className="relative z-10 h-screen">
+        <Routes>
+          <Route path="/" element={<RepoBrowser />} />
+          <Route path="/editor" element={<Editor />} />
+          <Route path="/jobs" element={<JobRunner />} />
+        </Routes>
+      </div>
     </BrowserRouter>
   )
 }

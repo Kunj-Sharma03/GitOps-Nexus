@@ -3,6 +3,9 @@
  */
 
 import express, { Request, Response, NextFunction } from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import IORedis from 'ioredis';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import prisma from './lib/prisma';
@@ -14,6 +17,46 @@ import debugRoutes from './routes/debug';
 dotenv.config();
 
 const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: '*', // Allow all for dev
+    methods: ['GET', 'POST']
+  }
+});
+
+// Redis Subscriber for Logs
+const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
+const redisSub = new IORedis(redisUrl, { maxRetriesPerRequest: null });
+
+redisSub.subscribe('job-logs', (err) => {
+  if (err) console.error('Failed to subscribe to job-logs:', err);
+  else console.log('Subscribed to job-logs channel');
+});
+
+redisSub.on('message', (channel, message) => {
+  if (channel === 'job-logs') {
+    try {
+      const { jobId, line } = JSON.parse(message);
+      io.to(`job:${jobId}`).emit('log', line);
+    } catch (e) {
+      console.error('Error parsing log message:', e);
+    }
+  }
+});
+
+io.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
+  
+  socket.on('join-job', (jobId) => {
+    socket.join(`job:${jobId}`);
+    console.log(`Socket ${socket.id} joined job:${jobId}`);
+  });
+
+  socket.on('leave-job', (jobId) => {
+    socket.leave(`job:${jobId}`);
+  });
+});
 
 // ========== MIDDLEWARE ==========
 
@@ -110,13 +153,14 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log('╔════════════════════════════════════════╗');
   console.log('║   GitOps DevTools API Server          ║');
   console.log('╚════════════════════════════════════════╝');
   console.log('');
   console.log(`🚀 Server: http://localhost:${PORT}`);
   console.log(`📊 Health:  http://localhost:${PORT}/health`);
+  console.log(`🔌 Socket.IO: enabled`);
   console.log('');
   console.log('Press Ctrl+C to stop');
 });

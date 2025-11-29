@@ -23,7 +23,8 @@
     "ioredis": "^5.8.2",
     "jsonwebtoken": "^9.0.2",
     "prisma": "^6.19.0",
-    "simple-git": "^3.30.0"
+    "simple-git": "^3.30.0",
+    "socket.io": "^4.8.1"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
@@ -32,6 +33,7 @@
     "@types/fs-extra": "^11.0.4",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.10.1",
+    "@types/socket.io": "^3.0.1",
     "nodemon": "^3.1.11",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"

@@ -48,7 +48,7 @@ This file tracks the 8-week roadmap as discrete daily tasks and the current stat
 - Day 16 (Mon) — Job queue & job model: Redis + BullMQ, Job DB model, enqueue endpoint. ✅
 - Day 17 (Tue) — Worker skeleton: worker process to read jobs, update DB, logging. ✅
 - Day 18 (Wed) — Container runner: run jobs in containers, capture logs. ✅
-- Day 19 (Thu) — Realtime logs: WebSocket (Socket.IO) to stream job logs. ⬜
+- Day 19 (Thu) — Realtime logs: WebSocket (Socket.IO) to stream job logs. ✅
 - Day 20 (Fri) — Job UI: create job, view status, realtime logs. ⬜
 
 ## Week 5 — Ephemeral sandboxes + resource limits

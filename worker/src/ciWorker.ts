@@ -2,7 +2,11 @@ import fs from 'fs-extra'
 import path from 'path'
 import { spawn } from 'child_process'
 import simpleGit from 'simple-git'
+import IORedis from 'ioredis'
 import prisma from '../../api/src/lib/prisma'
+
+const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379'
+const redisPub = new IORedis(redisUrl, { maxRetriesPerRequest: null })
 
 export default async function processCiJob(data: any, onLog?: (line: string) => void) {
   const { jobId, repoId, command, branch } = data
@@ -18,6 +22,8 @@ export default async function processCiJob(data: any, onLog?: (line: string) => 
       const line = `${msg}\n`
       out.write(line)
       if (onLog) onLog(line.trim())
+      // Publish to Redis
+      redisPub.publish('job-logs', JSON.stringify({ jobId, line: line.trim() }))
     }
 
     // mark job running

@@ -24,6 +24,10 @@ export async function getRepos() {
   return apiFetch('/repos')
 }
 
+export async function createRepo(gitUrl: string, name?: string) {
+  return apiFetch('/repos', { method: 'POST', body: JSON.stringify({ gitUrl, name }) })
+}
+
 export async function getBranches(repoId: string) {
   return apiFetch(`/repos/${repoId}/branches`)
 }

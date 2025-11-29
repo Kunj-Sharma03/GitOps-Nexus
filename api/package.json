@@ -15,10 +15,12 @@
     "@octokit/rest": "^22.0.1",
     "@prisma/client": "^6.19.0",
     "bcrypt": "^6.0.0",
+    "bullmq": "^5.65.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "fs-extra": "^11.3.2",
+    "ioredis": "^5.8.2",
     "jsonwebtoken": "^9.0.2",
     "prisma": "^6.19.0",
     "simple-git": "^3.30.0"

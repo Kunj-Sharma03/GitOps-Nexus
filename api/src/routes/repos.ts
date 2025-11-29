@@ -1,9 +1,10 @@
 import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
-import { getBranches, getFileTree, readFile, findReadme, parseGitHubUrl, compareCommits, createOrUpdateFile, listCommits } from '../lib/git';
+import { getBranches, getFileTree, readFile, readFileWithMeta, findReadme, parseGitHubUrl, compareCommits, createOrUpdateFile, listCommits } from '../lib/git';
 import { getFileAtRef } from '../lib/git';
 import { cacheDelPrefix, getCacheStats, invalidateRepoCache } from '../lib/cache';
+import { ciQueue } from '../lib/queue';
 
 const router = Router();
 
@@ -167,8 +168,8 @@ router.get('/:id/file-content', async (req: AuthRequest, res: Response) => {
     }
     
     try {
-      const content = await readFile(repo.gitUrl, path as string, (branch as string) || repo.defaultBranch);
-      return res.json({ content, path });
+      const { content, sha } = await readFileWithMeta(repo.gitUrl, path as string, (branch as string) || repo.defaultBranch);
+      return res.json({ content, sha, path });
     } catch (err) {
       // If the specific path wasn't found, fall back to README lookup for a better UX
       const msg = err instanceof Error ? err.message : '';
@@ -211,9 +212,9 @@ router.get('/:id/diff', async (req: AuthRequest, res: Response) => {
 // POST /:id/commit -> create or update a file on given branch
 router.post('/:id/commit', async (req: AuthRequest, res: Response) => {
   try {
-    const { path, content, branch, message, dryRun } = req.body;
+    const { path, content, branch, message, dryRun, parentSha } = req.body;
     console.log(`[repos] POST /${req.params.id}/commit by user=${req.userId} email=${req.userEmail} dryRun=${!!dryRun}`);
-    console.log('[repos] request body:', { path, branch, message, contentLength: typeof content === 'string' ? Buffer.byteLength(content, 'utf8') : null });
+    console.log('[repos] request body:', { path, branch, message, parentSha, contentLength: typeof content === 'string' ? Buffer.byteLength(content, 'utf8') : null });
     if (!path || typeof content !== 'string') return res.status(400).json({ error: 'path and content are required in body' });
 
     const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
@@ -233,8 +234,16 @@ router.post('/:id/commit', async (req: AuthRequest, res: Response) => {
       console.log('[repos] dry-run mode - skipping actual commit');
       result = { dryRun: true, path, contentLength: Buffer.byteLength(content, 'utf8'), branch: branch || repo.defaultBranch, message: message || `Update ${path} via API` };
     } else {
-      result = await createOrUpdateFile(repo.gitUrl, path, content, branch || repo.defaultBranch, message || `Update ${path} via API`, { name: req.userEmail || 'dev', email: req.userEmail || 'dev@example.com' }, token);
-      console.log('[repos] createOrUpdateFile result:', { content: !!result?.content, commitSha: result?.commit?.sha });
+      try {
+        result = await createOrUpdateFile(repo.gitUrl, path, content, branch || repo.defaultBranch, message || `Update ${path} via API`, { name: req.userEmail || 'dev', email: req.userEmail || 'dev@example.com' }, token, parentSha);
+        console.log('[repos] createOrUpdateFile result:', { content: !!result?.content, commitSha: result?.commit?.sha });
+      } catch (err: any) {
+        // Handle conflict specifically
+        if (err.message && err.message.includes('409')) {
+          return res.status(409).json({ error: 'Conflict: File has been modified on server. Please refresh and try again.' });
+        }
+        throw err;
+      }
     }
 
     // Invalidate caches for this repo so subsequent reads return fresh data (only for real commits)
@@ -323,6 +332,37 @@ router.post('/:id/refresh-cache', async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('[repos] POST /:id/refresh-cache error', error);
     return res.status(500).json({ error: 'Failed to refresh cache' });
+  }
+});
+
+// POST /:id/jobs -> enqueue a CI/job run for this repo
+router.post('/:id/jobs', async (req: AuthRequest, res: Response) => {
+  try {
+    const { command, branch, meta } = req.body as { command?: string; branch?: string; meta?: any };
+    if (!command) return res.status(400).json({ error: 'command is required' });
+
+    const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
+    if (!repo || String(repo.userId) !== String(req.userId)) return res.status(404).json({ error: 'Repo not found' });
+
+    // Create DB job record
+    const job = await prisma.job.create({
+      data: {
+        branch: branch || repo.defaultBranch,
+        commands: [command],
+        status: 'QUEUED',
+        repoId: repo.id,
+        userId: req.userId!,
+        createdAt: new Date()
+      }
+    });
+
+    // Enqueue into BullMQ ci-jobs queue
+    await ciQueue.add('ci-run', { jobId: job.id, repoId: repo.id, command, branch: branch || repo.defaultBranch, meta: meta || {} });
+
+    return res.status(201).json({ jobId: job.id });
+  } catch (err: any) {
+    console.error('[repos] POST /:id/jobs error', err);
+    return res.status(500).json({ error: 'Failed to enqueue job', details: err?.message || String(err) });
   }
 });
 

@@ -42,9 +42,10 @@ export async function getDiff(repoId: string, base: string, head: string) {
   return apiFetch(`/repos/${repoId}/diff${q}`)
 }
 
-export async function postCommit(repoId: string, path: string, content: string, message: string, branch?: string, dryRun = false) {
+export async function postCommit(repoId: string, path: string, content: string, message: string, branch?: string, dryRun = false, parentSha?: string) {
   const body: any = { path, content, message, dryRun }
   if (branch) body.branch = branch
+  if (parentSha) body.parentSha = parentSha
   return apiFetch(`/repos/${repoId}/commit`, { method: 'POST', body: JSON.stringify(body) })
 }
 

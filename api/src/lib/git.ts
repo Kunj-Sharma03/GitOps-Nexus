@@ -156,6 +156,40 @@ export async function readFile(gitUrl: string, filePath: string, branch: string 
   }
 }
 
+export async function readFileWithMeta(gitUrl: string, filePath: string, branch: string = 'main'): Promise<{ content: string; sha: string }> {
+  try {
+    const { owner, repo } = parseGitHubUrl(gitUrl);
+    const ref = branch || 'main';
+    // Note: We are not caching metadata read for now to ensure freshness for conflict detection
+    try {
+      const { data } = await withRetries(() => octokit.repos.getContent({ owner, repo, path: filePath, ref: branch }));
+      if ('content' in data) {
+        return {
+          content: Buffer.from(data.content, 'base64').toString('utf-8'),
+          sha: data.sha
+        };
+      }
+      throw new Error('File not found or is a directory');
+    } catch (err: any) {
+      if (err && err.status === 404) {
+         // Try default branch fallback
+         const repoResp = await withRetries(() => octokit.repos.get({ owner, repo }));
+         const defaultBranch = repoResp.data.default_branch;
+         const { data } = await withRetries(() => octokit.repos.getContent({ owner, repo, path: filePath, ref: defaultBranch }));
+         if ('content' in data) {
+           return {
+             content: Buffer.from(data.content, 'base64').toString('utf-8'),
+             sha: data.sha
+           };
+         }
+      }
+      throw err;
+    }
+  } catch (error) {
+    throw new Error(`Failed to read file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
 export async function findReadme(gitUrl: string, branch?: string): Promise<{ path: string; content: string }> {
   const { owner, repo } = parseGitHubUrl(gitUrl);
   const cacheKey = `readme:${owner}/${repo}:${branch || 'default'}`;
@@ -323,22 +357,26 @@ export async function listCommits(gitUrl: string, filePath?: string, limit = 20)
   }
 }
 
-export async function createOrUpdateFile(gitUrl: string, filePath: string, content: string, branch: string = 'main', message: string = 'Update file', author?: { name?: string; email?: string }, token?: string) {
+export async function createOrUpdateFile(gitUrl: string, filePath: string, content: string, branch: string = 'main', message: string = 'Update file', author?: { name?: string; email?: string }, token?: string, sha?: string) {
   try {
     const { owner, repo } = parseGitHubUrl(gitUrl);
     const client = token ? new Octokit({ auth: token }) : octokit;
     const encoded = Buffer.from(content, 'utf8').toString('base64');
-    let sha: string | undefined;
-    try {
-      const existing = await withRetries(() => client.repos.getContent({ owner, repo, path: filePath, ref: branch }));
-      if (existing && 'data' in existing && existing.data && (existing.data as any).sha) sha = (existing.data as any).sha;
-    } catch (err: any) {
-      // not found -> will create
-      if (err && err.status && err.status !== 404) throw err;
+    let targetSha = sha;
+
+    // If no SHA provided, fetch latest to ensure update works (last-write-wins)
+    if (!targetSha) {
+      try {
+        const existing = await withRetries(() => client.repos.getContent({ owner, repo, path: filePath, ref: branch }));
+        if (existing && 'data' in existing && existing.data && (existing.data as any).sha) targetSha = (existing.data as any).sha;
+      } catch (err: any) {
+        // not found -> will create
+        if (err && err.status && err.status !== 404) throw err;
+      }
     }
 
     const params: any = { owner, repo, path: filePath, message, content: encoded, branch };
-    if (sha) params.sha = sha;
+    if (targetSha) params.sha = targetSha;
     if (author) params.committer = { name: author.name || 'dev', email: author.email || 'dev@example.com' };
 
     const resp = await withRetries(() => client.repos.createOrUpdateFileContents(params));

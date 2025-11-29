@@ -98,13 +98,23 @@ The platform follows a modern microservices-ready architecture:
 3.  **Install Dependencies & Run**
     ```bash
     # Backend
-    cd api && npm install && npm run dev
-
-    # Frontend
-    cd frontend && npm install && npm run dev
+    cd api
+    cp .env.example .env # Configure DATABASE_URL and REDIS_URL
+    npm install
+    npx prisma db push # Sync DB schema
+    npm run dev
 
     # Worker
-    cd worker && npm install && npm run dev
+    cd worker
+    cp .env.example .env # Configure DATABASE_URL and REDIS_URL
+    npm install
+    npm run generate # Generate Prisma client for worker
+    npm run dev
+
+    # Frontend
+    cd frontend
+    npm install
+    npm run dev
     ```
 
 4.  **Access the App**

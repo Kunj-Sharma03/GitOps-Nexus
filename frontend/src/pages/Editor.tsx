@@ -14,6 +14,7 @@ export default function Editor() {
 
   const [branch, setBranch] = useState(initialBranch)
   const [content, setContent] = useState<string>('')
+  const [sha, setSha] = useState<string | undefined>(undefined)
   const [loading, setLoading] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [message, setMessage] = useState('Update via GitOps Nexus')
@@ -31,7 +32,10 @@ export default function Editor() {
     if (!repoId || !path) return
     setLoading(true)
     getFileContent(repoId, path, branch)
-      .then((r: any) => setContent(r.content || r))
+      .then((r: any) => {
+        setContent(r.content || r)
+        if (r.sha) setSha(r.sha)
+      })
       .catch((e) => setError(e.message || 'Failed to load file'))
       .finally(() => setLoading(false))
   }, [repoId, path, branch])
@@ -82,17 +86,37 @@ export default function Editor() {
     setLoading(true)
     setError(null)
     try {
-      const res = await postCommit(repoId, path, content, message, branch, dryRun)
+      const res = await postCommit(repoId, path, content, message, branch, dryRun, sha)
       console.log('save response', res)
       setDirty(false)
+      
+      if (!dryRun && res.result && res.result.content && res.result.content.sha) {
+        setSha(res.result.content.sha)
+      }
+
       if (dryRun) alert('Dry run OK — no changes pushed')
       else alert('Saved and committed')
     } catch (e: any) {
-      setError(e.message || String(e))
+      if (e.message && (e.message.includes('409') || e.message.includes('Conflict'))) {
+        if (confirm('Conflict detected: File has been modified on server. Overwrite anyway?')) {
+          try {
+            const res = await postCommit(repoId, path, content, message, branch, dryRun, undefined)
+            setDirty(false)
+            if (!dryRun && res.result && res.result.content && res.result.content.sha) {
+              setSha(res.result.content.sha)
+            }
+            alert('Overwritten successfully')
+          } catch (retryErr: any) {
+            setError(retryErr.message || String(retryErr))
+          }
+        }
+      } else {
+        setError(e.message || String(e))
+      }
     } finally {
       setLoading(false)
     }
-  }, [repoId, path, content, message, branch, dryRun])
+  }, [repoId, path, content, message, branch, dryRun, sha])
 
   // Draft helpers
   const draftKey = () => `draft:${repoId}:${path}:${branch}`

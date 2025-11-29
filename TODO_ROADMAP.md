@@ -18,8 +18,7 @@ This file tracks the 8-week roadmap as discrete daily tasks and the current stat
 
 - Day 6 (Mon) — Add repo endpoint: `POST /api/repos` to add git URL & DB record. ✅
 - Day 7 (Tue) — Branch listing: `GET /repos/:id/branches` (GitHub API or local git). ✅
-- Day 8 (Wed) — File tree & fetch: `GET /repos/:id/files`, `GET /repos/:id/file-content`. 🔶 in-progress
- - Day 8 (Wed) — File tree & fetch: `GET /repos/:id/files`, `GET /repos/:id/file-content`. 🔶 in-progress
+- Day 8 (Wed) — File tree & fetch: `GET /repos/:id/files`, `GET /repos/:id/file-content`. ✅
 
 ### Caching notes (Day 8)
 
@@ -33,22 +32,22 @@ This file tracks the 8-week roadmap as discrete daily tasks and the current stat
 
 - Dev helper:
 	- `api/scripts/smoke_cache_test.sh` — smoke-test script to exercise files, file-content, README discovery and refresh flows. Provide `JWT` and `REPO_ID` when running.
-- Day 9 (Thu) — Diff/commit endpoints: show diffs between branches/commits. ⬜
-- Day 10 (Fri) — Frontend repo browser: repo list + branch dropdown + file tree. 🔶 in-progress
+- Day 9 (Thu) — Diff/commit endpoints: show diffs between branches/commits. ✅
+- Day 10 (Fri) — Frontend repo browser: repo list + branch dropdown + file tree. ✅
 
 # Week 3 — Editor with Monaco + save/commit flow
 
 - Day 11 (Mon) — Editor route & Monaco: add editor page and load file content. ✅
-- Day 12 (Tue) — UI editing flow: editing, autosave, Save button. ⬜
-- Day 13 (Wed) — Commit from backend: write file to disk and commit with author. ⬜
-- Day 14 (Thu) — Conflict detection: optimistic locking & conflict warnings. ⬜
-- Day 15 (Fri) — Commit flow testing: test commit/push flows and unit tests. ⬜
+- Day 12 (Tue) — UI editing flow: editing, autosave, Save button. ✅
+- Day 13 (Wed) — Commit from backend: write file to disk and commit with author. ✅
+- Day 14 (Thu) — Conflict detection: optimistic locking & conflict warnings. ✅
+- Day 15 (Fri) — Commit flow testing: test commit/push flows and unit tests. ✅
 
 ## Week 4 — CI job queue + worker + websocket logs
 
-- Day 16 (Mon) — Job queue & job model: Redis + BullMQ, Job DB model, enqueue endpoint. 🔶 in-progress
-- Day 17 (Tue) — Worker skeleton: worker process to read jobs, update DB, logging. 🔶 in-progress
-- Day 18 (Wed) — Container runner: run jobs in containers, capture logs. ⬜
+- Day 16 (Mon) — Job queue & job model: Redis + BullMQ, Job DB model, enqueue endpoint. ✅
+- Day 17 (Tue) — Worker skeleton: worker process to read jobs, update DB, logging. ✅
+- Day 18 (Wed) — Container runner: run jobs in containers, capture logs. ✅
 - Day 19 (Thu) — Realtime logs: WebSocket (Socket.IO) to stream job logs. ⬜
 - Day 20 (Fri) — Job UI: create job, view status, realtime logs. ⬜
 
@@ -88,9 +87,9 @@ This file tracks the 8-week roadmap as discrete daily tasks and the current stat
 
 ## Notes & Next Actions
 
-- Current focus: Finish Week2 Day8 (file tree + file-content) and continue Week4 (job queue + worker).
-- Optional: Create small dev-only OAuth login for local testing, or wire enqueueing of metadata job after repo creation.
+- Current focus: Implement Realtime logs (Day 19) and Job UI (Day 20).
+- Completed: Worker Docker runner, Job queue, Smoke tests.
 
 ---
 
-_Last updated: 2025-11-20_
+_Last updated: 2025-11-29_

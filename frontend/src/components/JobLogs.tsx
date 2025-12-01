@@ -4,32 +4,45 @@ import { io, Socket } from 'socket.io-client';
 interface JobLogsProps {
   jobId: string;
   initialLogs?: string[];
+  onStatusChange?: (status: string) => void;
 }
 
-export function JobLogs({ jobId, initialLogs = [] }: JobLogsProps) {
+export function JobLogs({ jobId, initialLogs = [], onStatusChange }: JobLogsProps) {
   const [logs, setLogs] = useState<string[]>(initialLogs);
   const socketRef = useRef<Socket | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // Clear logs and reconnect when jobId changes
   useEffect(() => {
+    // Reset logs when job changes
+    setLogs([]);
+    
     // Connect to API
     const socket = io('http://localhost:3000');
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('Connected to log stream');
+      console.log('Connected to log stream for job:', jobId);
       socket.emit('join-job', jobId);
     });
 
     socket.on('log', (line: string) => {
       setLogs(prev => [...prev, line]);
+      
+      // Check if job finished
+      if (line.includes('Job finished with exit code')) {
+        const exitCode = line.match(/exit code (\d+)/)?.[1];
+        if (onStatusChange) {
+          onStatusChange(exitCode === '0' ? 'SUCCESS' : 'FAILED');
+        }
+      }
     });
 
     return () => {
       socket.emit('leave-job', jobId);
       socket.disconnect();
     };
-  }, [jobId]);
+  }, [jobId, onStatusChange]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });

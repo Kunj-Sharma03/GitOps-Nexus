@@ -32,6 +32,10 @@ export default function JobRunner() {
         setBranch(r.defaultBranch || 'main')
       }
     })
+    
+    // Poll for job status updates every 3 seconds
+    const interval = setInterval(loadJobs, 3000)
+    return () => clearInterval(interval)
   }, [repoId])
 
   const loadJobs = () => {

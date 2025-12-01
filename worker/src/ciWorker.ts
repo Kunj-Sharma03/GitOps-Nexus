@@ -5,6 +5,7 @@ import simpleGit from 'simple-git'
 import IORedis from 'ioredis'
 import archiver from 'archiver'
 import { withPrisma } from './prisma'
+import { sendJobNotification } from './services/notifications'
 
 const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379'
 const redisPub = new IORedis(redisUrl, { maxRetriesPerRequest: null })
@@ -104,17 +105,41 @@ export default async function processCiJob(data: any, onLog?: (line: string) => 
       out.end()
       await fs.remove(workDir)
 
+      // Update job status and send notification
       await withPrisma(async (prisma) => {
+        const startedAt = await prisma.job.findUnique({ where: { id: jobId }, select: { startedAt: true } })
+        const finishedAt = new Date()
+        const status = code === 0 ? 'SUCCESS' : 'FAILED'
+        
         await prisma.job.update({ 
           where: { id: jobId }, 
           data: { 
-            finishedAt: new Date(), 
+            finishedAt, 
             exitCode: code, 
-            status: code === 0 ? 'SUCCESS' : 'FAILED', 
+            status, 
             logsPath: logPath,
             artifactsPath: artifactPath
           } 
         })
+
+        // Get user email for notification
+        const user = await prisma.user.findUnique({ where: { id: repo.userId }, select: { email: true } })
+        if (user?.email) {
+          const duration = startedAt?.startedAt 
+            ? `${Math.round((finishedAt.getTime() - startedAt.startedAt.getTime()) / 1000)}s`
+            : undefined
+          
+          await sendJobNotification({
+            to: user.email,
+            jobId,
+            jobName: command,
+            repoName: repo.name,
+            status: status as 'SUCCESS' | 'FAILED',
+            duration,
+            artifactsUrl: artifactPath ? `http://localhost:3000/api/jobs/${jobId}/artifacts` : undefined,
+            logsPath: logPath,
+          })
+        }
       })
       
       return { ok: code === 0 }
@@ -133,6 +158,20 @@ export default async function processCiJob(data: any, onLog?: (line: string) => 
 
       await withPrisma(async (prisma) => {
         await prisma.job.update({ where: { id: jobId }, data: { finishedAt: new Date(), exitCode: 0, status: 'SUCCESS', logsPath: logPath } })
+        
+        // Send notification for simulated job
+        const user = await prisma.user.findUnique({ where: { id: repo.userId }, select: { email: true } })
+        if (user?.email) {
+          await sendJobNotification({
+            to: user.email,
+            jobId,
+            jobName: command,
+            repoName: repo.name,
+            status: 'SUCCESS',
+            duration: '2s',
+            logsPath: logPath,
+          })
+        }
       })
       
       return { ok: true }
@@ -146,6 +185,22 @@ export default async function processCiJob(data: any, onLog?: (line: string) => 
       
       await withPrisma(async (prisma) => {
         await prisma.job.update({ where: { id: jobId }, data: { finishedAt: new Date(), status: 'FAILED', errorMessage: err.message } })
+        
+        // Send failure notification
+        const job = await prisma.job.findUnique({ where: { id: jobId }, include: { repo: true } })
+        if (job?.repo) {
+          const user = await prisma.user.findUnique({ where: { id: job.repo.userId }, select: { email: true } })
+          if (user?.email) {
+            await sendJobNotification({
+              to: user.email,
+              jobId,
+              jobName: command || 'CI Job',
+              repoName: job.repo.name,
+              status: 'FAILED',
+              logsPath: logPath,
+            })
+          }
+        }
       })
     } catch (_) {}
     

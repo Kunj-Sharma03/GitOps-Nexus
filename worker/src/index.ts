@@ -4,9 +4,25 @@ import IORedis from 'ioredis';
 import path from 'path';
 import populateRepoMetadata from './jobs/populateRepoMetadata';
 import processCiJob from './ciWorker';
+import sessionStart from './jobs/sessionStart';
 
 const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
-const connection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
+const connection = new IORedis(redisUrl, { 
+  maxRetriesPerRequest: null,
+  retryStrategy: (times) => {
+    const delay = Math.min(times * 50, 2000);
+    return delay;
+  }
+});
+
+connection.on('error', (err: any) => {
+  if (err.code === 'ECONNREFUSED') {
+    console.error('❌ Redis connection failed. Is Redis running?');
+    console.error('   Run: docker-compose up -d');
+  } else {
+    console.error('Redis error:', err);
+  }
+});
 
 const queueName = 'repo-jobs';
 export const repoQueue = new Queue(queueName, { connection });
@@ -47,6 +63,10 @@ const ciWorker = new Worker(
         console.error('CI job failed', err?.message || err)
         throw err
       }
+    } else if (job.name === 'session-start') {
+      console.log('Processing session start job', job.data);
+      await sessionStart(job.data);
+      return { ok: true };
     }
     throw new Error(`Unknown ci job ${job.name}`)
   },

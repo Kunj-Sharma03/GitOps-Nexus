@@ -24,7 +24,8 @@
     "jsonwebtoken": "^9.0.2",
     "prisma": "^6.19.0",
     "simple-git": "^3.30.0",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",

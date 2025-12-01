@@ -49,13 +49,13 @@ This file tracks the 8-week roadmap as discrete daily tasks and the current stat
 - Day 17 (Tue) — Worker skeleton: worker process to read jobs, update DB, logging. ✅
 - Day 18 (Wed) — Container runner: run jobs in containers, capture logs. ✅
 - Day 19 (Thu) — Realtime logs: WebSocket (Socket.IO) to stream job logs. ✅
-- Day 20 (Fri) — Job UI: create job, view status, realtime logs. ⬜
+- Day 20 (Fri) — Job UI: create job, view status, realtime logs. ✅
 
 ## Week 5 — Ephemeral sandboxes + resource limits
 
-- Day 21 (Mon) — Sandbox design: workspace session model & endpoints. ⬜
-- Day 22 (Tue) — Sandbox runner: ephemeral container creation with resource limits. ⬜
-- Day 23 (Wed) — Sandbox UI: launch sandbox, show status, TTL cleanup. ⬜
+- Day 21 (Mon) — Sandbox design: workspace session model & endpoints. ✅
+- Day 22 (Tue) — Sandbox runner: ephemeral container creation with resource limits. ✅
+- Day 23 (Wed) — Sandbox UI: launch sandbox, show status, TTL cleanup. 🔶
 - Day 24 (Thu) — Container security: run non-root, AppArmor/SELinux guidance. ⬜
 - Day 25 (Fri) — Sandbox testing & cleanup: validate cleanup. ⬜
 
@@ -87,8 +87,8 @@ This file tracks the 8-week roadmap as discrete daily tasks and the current stat
 
 ## Notes & Next Actions
 
-- Current focus: Implement Realtime logs (Day 19) and Job UI (Day 20).
-- Completed: Worker Docker runner, Job queue, Smoke tests.
+- Current focus: Implement Sandbox UI (Day 23).
+- Completed: Sandbox backend endpoints (Day 21), Sandbox runner with Docker (Day 22).
 
 ---
 

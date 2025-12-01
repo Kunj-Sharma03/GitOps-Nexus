@@ -63,7 +63,7 @@ This file tracks the 8-week roadmap as discrete daily tasks and the current stat
 
 - Day 26 (Mon) — Artifacts collection: worker archives outputs (local/S3). ✅
 - Day 27 (Tue) — Job history UI: list past runs, filters, download artifacts. ✅
-- Day 28 (Wed) — Notifications: email (SendGrid) for job results. ⬜
+- Day 28 (Wed) — Notifications: email (Brevo SMTP) for job results with log attachments. ✅
 - Day 29 (Thu) — Interactive Web Terminal: xterm.js + WebSocket + Docker exec. ⬜
 - Day 30 (Fri) — UI polish: status color coding, responsive layout. ⬜
 
@@ -87,8 +87,8 @@ This file tracks the 8-week roadmap as discrete daily tasks and the current stat
 
 ## Notes & Next Actions
 
-- Current focus: Notifications (Day 28) or UI Polish (Day 29).
-- Completed: Artifacts & Job History (Day 26, 27).
+- Current focus: Interactive Web Terminal (Day 29).
+- Completed: Days 1-28 (Notifications with Brevo SMTP).
 
 ---
 

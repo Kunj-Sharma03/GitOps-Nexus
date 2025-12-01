@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
+import api from '../lib/api';
 
 interface JobLogsProps {
   jobId: string;
@@ -9,15 +10,33 @@ interface JobLogsProps {
 
 export function JobLogs({ jobId, initialLogs = [], onStatusChange }: JobLogsProps) {
   const [logs, setLogs] = useState<string[]>(initialLogs);
+  const [loading, setLoading] = useState(true);
   const socketRef = useRef<Socket | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Clear logs and reconnect when jobId changes
+  // Clear logs and fetch existing logs when jobId changes
   useEffect(() => {
     // Reset logs when job changes
     setLogs([]);
+    setLoading(true);
     
-    // Connect to API
+    // Fetch existing logs first
+    const fetchExistingLogs = async () => {
+      try {
+        const data = await api(`/jobs/${jobId}/logs`);
+        if (data.logs && data.logs.length > 0) {
+          setLogs(data.logs);
+        }
+      } catch (err) {
+        console.error('Failed to fetch existing logs:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchExistingLogs();
+    
+    // Connect to API for real-time logs
     const socket = io('http://localhost:3000');
     socketRef.current = socket;
 
@@ -50,9 +69,14 @@ export function JobLogs({ jobId, initialLogs = [], onStatusChange }: JobLogsProp
 
   return (
     <div className="bg-transparent text-dystopia-text p-4 font-mono text-xs h-full overflow-y-auto custom-scrollbar">
-      {logs.length === 0 && (
+      {loading && logs.length === 0 && (
         <div className="flex flex-col items-center justify-center h-full text-dystopia-muted/40">
-          <div className="animate-pulse">Waiting for logs...</div>
+          <div className="animate-pulse">Loading logs...</div>
+        </div>
+      )}
+      {!loading && logs.length === 0 && (
+        <div className="flex flex-col items-center justify-center h-full text-dystopia-muted/40">
+          <div>No logs available for this job</div>
         </div>
       )}
       <div className="space-y-0.5">

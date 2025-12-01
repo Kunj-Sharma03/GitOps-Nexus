@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getSessions, createSession, deleteSession, getRepos } from '../lib/api'
+import { Terminal } from '../components/Terminal'
 
 export default function Sandboxes() {
   const [sessions, setSessions] = useState<any[]>([])
@@ -10,6 +11,7 @@ export default function Sandboxes() {
   const [selectedRepoId, setSelectedRepoId] = useState<string>('')
   const [ttl, setTtl] = useState(30)
   const [creating, setCreating] = useState(false)
+  const [terminalSessionId, setTerminalSessionId] = useState<string | null>(null)
   
   const navigate = useNavigate()
 
@@ -136,7 +138,7 @@ export default function Sandboxes() {
                             {session.status === 'RUNNING' && (
                                 <button 
                                     className="text-xs text-dystopia-primary hover:underline uppercase tracking-wider"
-                                    onClick={() => alert('Interactive terminal access is planned for a future update.')}
+                                    onClick={() => setTerminalSessionId(session.id)}
                                 >
                                     Open Terminal
                                 </button>
@@ -210,6 +212,25 @@ export default function Sandboxes() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Terminal Modal */}
+      {terminalSessionId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          {/* Backdrop with blur */}
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-md"
+            onClick={() => setTerminalSessionId(null)}
+          />
+          
+          {/* Terminal container */}
+          <div className="relative w-full max-w-5xl h-[70vh] animate-in fade-in zoom-in-95 duration-200">
+            <Terminal 
+              sessionId={terminalSessionId} 
+              onClose={() => setTerminalSessionId(null)}
+            />
           </div>
         </div>
       )}

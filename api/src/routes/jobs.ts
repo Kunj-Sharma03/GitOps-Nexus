@@ -18,6 +18,26 @@ router.get('/:id', async (req: AuthRequest, res) => {
   }
 })
 
+router.get('/:id/logs', async (req: AuthRequest, res) => {
+  try {
+    const job = await prisma.job.findUnique({ where: { id: req.params.id } })
+    if (!job) return res.status(404).json({ error: 'Job not found' })
+    if (!job.logsPath) return res.json({ logs: [] })
+
+    // Check if file exists
+    if (!fs.existsSync(job.logsPath)) {
+      return res.json({ logs: [] })
+    }
+
+    const content = fs.readFileSync(job.logsPath, 'utf-8')
+    const logs = content.split('\n').filter(line => line.trim())
+    return res.json({ logs })
+  } catch (err: any) {
+    console.error('[jobs] GET /:id/logs error', err)
+    return res.status(500).json({ error: 'Failed to fetch logs', details: err?.message || String(err) })
+  }
+})
+
 router.get('/:id/artifacts', async (req: AuthRequest, res) => {
   try {
     const job = await prisma.job.findUnique({ where: { id: req.params.id } })

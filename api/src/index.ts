@@ -9,6 +9,7 @@ import IORedis from 'ioredis';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import prisma from './lib/prisma';
+import { setupTerminalHandler } from './lib/terminal';
 import authRoutes from './routes/auth';
 import repoRoutes from './routes/repos';
 import jobsRoutes from './routes/jobs';
@@ -58,6 +59,9 @@ io.on('connection', (socket) => {
     socket.leave(`job:${jobId}`);
   });
 });
+
+// Setup terminal WebSocket handler
+setupTerminalHandler(io);
 
 // ========== MIDDLEWARE ==========
 

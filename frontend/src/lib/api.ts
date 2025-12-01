@@ -76,4 +76,16 @@ export async function getJob(jobId: string) {
   return apiFetch(`/jobs/${jobId}`)
 }
 
+export async function getSessions() {
+  return apiFetch('/sessions')
+}
+
+export async function createSession(repoId?: string, ttlMinutes = 30) {
+  return apiFetch('/sessions', { method: 'POST', body: JSON.stringify({ repoId, ttlMinutes }) })
+}
+
+export async function deleteSession(sessionId: string) {
+  return apiFetch(`/sessions/${sessionId}`, { method: 'DELETE' })
+}
+
 export default apiFetch

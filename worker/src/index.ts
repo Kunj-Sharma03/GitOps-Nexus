@@ -5,6 +5,7 @@ import path from 'path';
 import populateRepoMetadata from './jobs/populateRepoMetadata';
 import processCiJob from './ciWorker';
 import sessionStart from './jobs/sessionStart';
+import sessionCleanup from './jobs/sessionCleanup';
 
 const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
 const connection = new IORedis(redisUrl, { 
@@ -77,3 +78,9 @@ ciWorker.on('completed', job => console.log(`ci job ${job.id} (${job.name}) comp
 ciWorker.on('failed', (job, err) => console.error(`ci job ${job?.id} failed:`, err?.message || err))
 
 console.log('CI Worker started, listening for ci-jobs')
+
+// Start cleanup interval (every 60 seconds)
+setInterval(() => {
+  sessionCleanup().catch(err => console.error('Cleanup failed:', err));
+}, 60000);
+console.log('Session cleanup scheduler started (60s interval)');

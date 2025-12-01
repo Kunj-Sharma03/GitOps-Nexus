@@ -21,7 +21,7 @@ export default function Editor() {
   const [dryRun, setDryRun] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [autosave, setAutosave] = useState(true)
-  const [draftExists, setDraftExists] = useState(false)
+  const [, setDraftExists] = useState(false)
   const [showRecover, setShowRecover] = useState(false)
   const [commits, setCommits] = useState<any[]>([])
   const [repoMeta, setRepoMeta] = useState<any | null>(null)

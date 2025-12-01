@@ -1,4 +1,4 @@
-import React, { useRef } from 'react'
+import { useRef } from 'react'
 import Editor from '@monaco-editor/react'
 import type { OnMount, BeforeMount } from '@monaco-editor/react'
 
@@ -45,7 +45,7 @@ export default function MonacoWrapper({
     })
   }
 
-  const handleMount: OnMount = (editor, monaco) => {
+  const handleMount: OnMount = (editor) => {
     editorRef.current = editor
     if (onEditorMount) onEditorMount(editor)
   }

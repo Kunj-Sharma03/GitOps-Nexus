@@ -3,7 +3,7 @@ import { postCommit, getFileContent } from '../lib/api'
 
 const SIZE_LIMIT = 200 * 1024 // 200KB
 
-export default function CommitPanel({ repoId, branch, selectedPath, selectedRepo, onSuccess }: { repoId: string | null, branch: string, selectedPath?: string, selectedRepo?: any, onSuccess?: (res: any) => void }) {
+export default function CommitPanel({ repoId, branch, selectedPath, onSuccess }: { repoId: string | null, branch: string, selectedPath?: string, selectedRepo?: any, onSuccess?: (res: any) => void }) {
   const [message, setMessage] = useState('Update via GitOps Nexus')
   const [dryRun, setDryRun] = useState(true)
   const [content, setContent] = useState<string | undefined>(undefined)

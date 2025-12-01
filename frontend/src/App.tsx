@@ -4,6 +4,7 @@ import RepoBrowser from './pages/RepoBrowser'
 import Login from './pages/Login'
 import Editor from './pages/Editor'
 import JobRunner from './pages/JobRunner'
+import Sandboxes from './pages/Sandboxes'
 import ColorBends from './Background/ColorBends'
 import './App.css'
 
@@ -68,6 +69,7 @@ function App() {
           <Route path="/" element={<RepoBrowser />} />
           <Route path="/editor" element={<Editor />} />
           <Route path="/jobs" element={<JobRunner />} />
+          <Route path="/sandboxes" element={<Sandboxes />} />
         </Routes>
       </div>
     </BrowserRouter>

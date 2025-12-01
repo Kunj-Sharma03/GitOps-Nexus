@@ -88,6 +88,14 @@ export default function RepoBrowser() {
                  <span className="text-[10px] text-dystopia-muted uppercase tracking-widest font-mono">v1.0.0-alpha</span>
             </div>
             <div className="flex items-center gap-4">
+                 <button 
+                     onClick={() => navigate('/sandboxes')}
+                     className="flex items-center gap-2 px-3 py-1.5 rounded-sm border border-dystopia-border/30 bg-dystopia-card/20 text-[10px] text-dystopia-muted hover:text-dystopia-primary hover:border-dystopia-primary/50 hover:bg-dystopia-primary/10 transition-all uppercase tracking-widest font-mono"
+                 >
+                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                     Sandboxes
+                 </button>
+                 <div className="h-4 w-px bg-dystopia-border/30"></div>
                  <span className="text-[10px] text-dystopia-muted uppercase tracking-widest font-mono">User: Admin</span>
             </div>
         </div>

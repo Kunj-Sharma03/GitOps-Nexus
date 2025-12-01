@@ -71,10 +71,15 @@ export default async function sessionStart(data: SessionStartJobData) {
       Image: 'node:18-alpine',
       Cmd: ['tail', '-f', '/dev/null'], // Keep running
       name: containerName,
+      User: 'node', // Run as non-root user
       HostConfig: {
         Binds: [`${workDir}:/app`],
         Memory: 512 * 1024 * 1024, // 512MB
         NanoCpus: 500000000, // 0.5 CPU
+        CapDrop: ['ALL'], // Drop all capabilities
+        SecurityOpt: ['no-new-privileges'], // Prevent privilege escalation
+        // For production, consider adding AppArmor/SELinux profiles:
+        // SecurityOpt: ['apparmor=docker-default', 'no-new-privileges'],
       },
       WorkingDir: '/app',
       Labels: {

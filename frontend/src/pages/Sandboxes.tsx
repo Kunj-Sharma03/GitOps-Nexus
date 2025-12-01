@@ -136,7 +136,7 @@ export default function Sandboxes() {
                             {session.status === 'RUNNING' && (
                                 <button 
                                     className="text-xs text-dystopia-primary hover:underline uppercase tracking-wider"
-                                    onClick={() => alert('Terminal access coming soon (Day 23 UI)')}
+                                    onClick={() => alert('Interactive terminal access is planned for a future update.')}
                                 >
                                     Open Terminal
                                 </button>

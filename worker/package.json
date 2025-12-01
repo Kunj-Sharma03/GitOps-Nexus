@@ -13,6 +13,7 @@
   "description": "",
   "dependencies": {
     "@octokit/rest": "^22.0.1",
+    "archiver": "^7.0.1",
     "bullmq": "^5.64.0",
     "dockerode": "^4.0.9",
     "dotenv": "^17.2.3",
@@ -22,6 +23,7 @@
   },
   "devDependencies": {
     "@prisma/client": "^6.19.0",
+    "@types/archiver": "^7.0.0",
     "@types/dockerode": "^3.3.47",
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^24.10.1",

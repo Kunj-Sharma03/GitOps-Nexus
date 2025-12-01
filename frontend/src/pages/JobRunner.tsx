@@ -16,6 +16,7 @@ export default function JobRunner() {
   const [command, setCommand] = useState('npm test')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [filterStatus, setFilterStatus] = useState('ALL')
 
   useEffect(() => {
     if (!repoId) return
@@ -41,6 +42,30 @@ export default function JobRunner() {
         setSelectedJobId(data.jobs[0].id)
       }
     }).catch(err => setError(err.message))
+  }
+
+  const selectedJob = jobs.find(j => j.id === selectedJobId)
+
+  const handleDownloadArtifacts = async () => {
+    if (!selectedJobId) return
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`http://localhost:3000/api/jobs/${selectedJobId}/artifacts`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (!res.ok) throw new Error('Download failed')
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `artifacts-${selectedJobId}.zip`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+    } catch (err) {
+      console.error(err)
+      alert('Failed to download artifacts')
+    }
   }
 
   const handleCreateJob = async (e: React.FormEvent) => {
@@ -142,8 +167,23 @@ export default function JobRunner() {
                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                Recent Jobs
             </h3>
+            
+            <div className="px-2 mb-3">
+                <select 
+                    value={filterStatus} 
+                    onChange={e => setFilterStatus(e.target.value)}
+                    className="w-full bg-black/30 border border-dystopia-border/30 rounded px-2 py-1 text-[10px] text-dystopia-muted focus:border-dystopia-accent outline-none"
+                >
+                    <option value="ALL">All Status</option>
+                    <option value="SUCCESS">Success</option>
+                    <option value="FAILED">Failed</option>
+                    <option value="RUNNING">Running</option>
+                    <option value="QUEUED">Queued</option>
+                </select>
+            </div>
+
             <div className="space-y-2">
-              {jobs.map(job => (
+              {jobs.filter(job => filterStatus === 'ALL' || job.status === filterStatus).map(job => (
                 <button
                   key={job.id}
                   onClick={() => setSelectedJobId(job.id)}
@@ -188,8 +228,19 @@ export default function JobRunner() {
                    <div className="h-4 w-px bg-dystopia-border/30 mx-2"></div>
                    <h2 className="text-xs font-bold text-dystopia-text uppercase tracking-widest">Console Output</h2>
                 </div>
-                <div className="text-[10px] font-mono text-dystopia-muted">
-                   ID: <span className="text-dystopia-accent">{selectedJobId}</span>
+                <div className="flex items-center gap-4">
+                    {selectedJob?.artifactsPath && (
+                        <button 
+                            onClick={handleDownloadArtifacts}
+                            className="flex items-center gap-2 text-[10px] font-bold text-dystopia-accent hover:text-white transition-colors uppercase tracking-wider"
+                        >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            Download Artifacts
+                        </button>
+                    )}
+                    <div className="text-[10px] font-mono text-dystopia-muted">
+                    ID: <span className="text-dystopia-accent">{selectedJobId}</span>
+                    </div>
                 </div>
               </div>
               

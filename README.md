@@ -67,6 +67,15 @@ The platform follows a modern microservices-ready architecture:
 - **Authentication**: JWT-based auth with short expiry and refresh tokens.
 - **Infrastructure**: Docker Compose for local development; Helm/K8s ready for cloud deployment.
 
+### Sandbox Security
+
+Ephemeral sandboxes are secured using the following mechanisms:
+- **Non-Root Execution**: Containers run as the `node` user (UID 1000) to prevent root access to the host filesystem.
+- **Capability Dropping**: All Linux capabilities (`CapDrop: ['ALL']`) are dropped.
+- **Privilege Escalation Prevention**: `no-new-privileges` flag is enabled.
+- **Resource Limits**: CPU (0.5 cores) and Memory (512MB) limits are enforced.
+- **AppArmor/SELinux**: In production, it is recommended to apply the `docker-default` AppArmor profile or a custom SELinux context.
+
 ## 🧪 Testing & Quality
 
 - **Unit Tests**: Comprehensive coverage for backend services.

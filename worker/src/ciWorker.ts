@@ -3,7 +3,8 @@ import path from 'path'
 import { spawn } from 'child_process'
 import simpleGit from 'simple-git'
 import IORedis from 'ioredis'
-import prisma from '../../api/src/lib/prisma'
+import archiver from 'archiver'
+import prisma from './prisma'
 
 const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379'
 const redisPub = new IORedis(redisUrl, { maxRetriesPerRequest: null })
@@ -81,6 +82,34 @@ export default async function processCiJob(data: any, onLog?: (line: string) => 
       const code = await new Promise<number>((resolve) => proc.on('close', resolve))
       
       log(`Job finished with exit code ${code}`)
+      
+      let artifactPath = null;
+      if (code === 0) {
+        // Check for artifacts (e.g., dist/ folder)
+        const distPath = path.join(workDir, 'dist');
+        if (await fs.pathExists(distPath)) {
+            log('Found dist/ folder. Archiving artifacts...');
+            const artifactsDir = path.join(__dirname, '..', 'artifacts');
+            await fs.ensureDir(artifactsDir);
+            
+            const zipName = `${jobId}.zip`;
+            const zipPath = path.join(artifactsDir, zipName);
+            const output = fs.createWriteStream(zipPath);
+            const archive = archiver('zip', { zlib: { level: 9 } });
+
+            await new Promise<void>((resolve, reject) => {
+                output.on('close', resolve);
+                archive.on('error', reject);
+                archive.pipe(output);
+                archive.directory(distPath, false);
+                archive.finalize();
+            });
+            
+            log(`Artifacts saved to ${zipPath}`);
+            artifactPath = zipPath;
+        }
+      }
+
       out.end()
 
       // Cleanup workspace
@@ -92,7 +121,8 @@ export default async function processCiJob(data: any, onLog?: (line: string) => 
           finishedAt: new Date(), 
           exitCode: code, 
           status: code === 0 ? 'SUCCESS' : 'FAILED', 
-          logsPath: logPath 
+          logsPath: logPath,
+          artifactsPath: artifactPath
         } 
       })
       return { ok: code === 0 }

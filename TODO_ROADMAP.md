@@ -55,41 +55,41 @@ This file tracks the 8-week roadmap as discrete daily tasks and the current stat
 
 - Day 21 (Mon) — Sandbox design: workspace session model & endpoints. ✅
 - Day 22 (Tue) — Sandbox runner: ephemeral container creation with resource limits. ✅
-- Day 23 (Wed) — Sandbox UI: launch sandbox, show status, TTL cleanup. 🔶
-- Day 24 (Thu) — Container security: run non-root, AppArmor/SELinux guidance. ⬜
-- Day 25 (Fri) — Sandbox testing & cleanup: validate cleanup. ⬜
+- Day 23 (Wed) — Sandbox UI: launch sandbox, show status, TTL cleanup. ✅
+- Day 24 (Thu) — Container security: run non-root, AppArmor/SELinux guidance. ✅
+- Day 25 (Fri) — Sandbox testing & cleanup: validate cleanup. ✅
 
 ## Week 6 — CI features, artifacts, notifications, UI polish
 
-- Day 26 (Mon) — Artifacts collection: worker archives outputs (local/S3). ⬜
-- Day 27 (Tue) — Job history UI: list past runs, filters, download artifacts. ⬜
+- Day 26 (Mon) — Artifacts collection: worker archives outputs (local/S3). ✅
+- Day 27 (Tue) — Job history UI: list past runs, filters, download artifacts. ✅
 - Day 28 (Wed) — Notifications: email (SendGrid) for job results. ⬜
-- Day 29 (Thu) — UI polish: status color coding, responsive layout. ⬜
-- Day 30 (Fri) — RBAC basics: owner vs collaborator roles. ⬜
+- Day 29 (Thu) — Interactive Web Terminal: xterm.js + WebSocket + Docker exec. ⬜
+- Day 30 (Fri) — UI polish: status color coding, responsive layout. ⬜
 
 ## Week 7 — Tests, E2E, docs, robustness
 
-- Day 31 (Mon) — Unit tests: Jest for core backend logic. ⬜
-- Day 32 (Tue) — Integration tests: enqueue -> worker run (mock Docker). ⬜
-- Day 33 (Wed) — E2E tests: Playwright for critical flows. ⬜
-- Day 34 (Thu) — Metrics & logging: Prometheus metrics endpoint. ⬜
-- Day 35 (Fri) — Developer docs: local dev guide, deployment guide, runbook. ⬜
+- Day 31 (Mon) — RBAC basics: owner vs collaborator roles. ⬜
+- Day 32 (Tue) — Unit tests: Jest for core backend logic. ⬜
+- Day 33 (Wed) — Integration tests: enqueue -> worker run (mock Docker). ⬜
+- Day 34 (Thu) — E2E tests: Playwright for critical flows. ⬜
+- Day 35 (Fri) — Metrics & logging: Prometheus metrics endpoint. ⬜
 
 ## Week 8 — Deployment, scalability, final polish, release
 
-- Day 36 (Mon) — Full-stack Compose: compose file for api, web, worker, postgres, redis, proxy. ⬜
-- Day 37 (Tue) — HTTPS & proxy: Nginx + Let's Encrypt notes. ⬜
-- Day 38 (Wed) — Security review: rate limits, sanitize inputs, concurrency limits. ⬜
-- Day 39 (Thu) — Final UI polish: onboarding and guided tour. ⬜
-- Day 40 (Fri) — Release checklist: tag, demo, README, 1-page summary. ⬜
+- Day 36 (Mon) — Developer docs: local dev guide, deployment guide, runbook. ⬜
+- Day 37 (Tue) — Full-stack Compose: compose file for api, web, worker, postgres, redis, proxy. ⬜
+- Day 38 (Wed) — HTTPS & proxy: Nginx + Let's Encrypt notes. ⬜
+- Day 39 (Thu) — Security review: rate limits, sanitize inputs, concurrency limits. ⬜
+- Day 40 (Fri) — Final Release: onboarding, tag, demo, README. ⬜
 
 ---
 
 ## Notes & Next Actions
 
-- Current focus: Implement Sandbox UI (Day 23).
-- Completed: Sandbox backend endpoints (Day 21), Sandbox runner with Docker (Day 22).
+- Current focus: Notifications (Day 28) or UI Polish (Day 29).
+- Completed: Artifacts & Job History (Day 26, 27).
 
 ---
 
-_Last updated: 2025-11-29_
+_Last updated: 2025-12-01_

@@ -8,8 +8,9 @@
 import { PrismaClient } from '@prisma/client';
 
 // Create Prisma Client instance
+// Only log errors in production, add 'query' for debugging SQL
 const prisma = new PrismaClient({
-  log: ['query', 'error', 'warn'], // Logs SQL queries (useful for learning!)
+  log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
 });
 
 // Graceful shutdown - close database connections when app stops

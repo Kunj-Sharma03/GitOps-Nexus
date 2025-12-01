@@ -117,7 +117,11 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) =>
       data: { status: 'STOPPED' },
     });
 
-    // TODO: Trigger container cleanup (Day 22)
+    // Trigger container cleanup in the worker
+    await ciQueue.add('session-stop', { 
+      sessionId: session.id, 
+      containerId: session.containerId 
+    });
 
     res.json({ session: updated });
   } catch (error) {

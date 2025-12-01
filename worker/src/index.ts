@@ -5,6 +5,7 @@ import path from 'path';
 import populateRepoMetadata from './jobs/populateRepoMetadata';
 import processCiJob from './ciWorker';
 import sessionStart from './jobs/sessionStart';
+import sessionStop from './jobs/sessionStop';
 import sessionCleanup from './jobs/sessionCleanup';
 
 const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
@@ -68,6 +69,10 @@ const ciWorker = new Worker(
       console.log('Processing session start job', job.data);
       await sessionStart(job.data);
       return { ok: true };
+    } else if (job.name === 'session-stop') {
+      console.log('Processing session stop job', job.data);
+      await sessionStop(job.data);
+      return { ok: true };
     }
     throw new Error(`Unknown ci job ${job.name}`)
   },
@@ -79,8 +84,32 @@ ciWorker.on('failed', (job, err) => console.error(`ci job ${job?.id} failed:`, e
 
 console.log('CI Worker started, listening for ci-jobs')
 
-// Start cleanup interval (every 60 seconds)
-setInterval(() => {
-  sessionCleanup().catch(err => console.error('Cleanup failed:', err));
-}, 60000);
-console.log('Session cleanup scheduler started (60s interval)');
+// Track consecutive DB failures to reduce log spam
+let consecutiveDbFailures = 0;
+const MAX_CONSECUTIVE_FAILURES_TO_LOG = 3;
+
+// Cleanup function with failure tracking
+async function runCleanup() {
+  try {
+    await sessionCleanup();
+    if (consecutiveDbFailures > 0) {
+      console.log('✅ Database connection restored');
+    }
+    consecutiveDbFailures = 0;
+  } catch (err: any) {
+    consecutiveDbFailures++;
+    // Only log first few failures, then go quiet to avoid spam
+    if (consecutiveDbFailures <= MAX_CONSECUTIVE_FAILURES_TO_LOG) {
+      console.error(`Cleanup failed (${consecutiveDbFailures}):`, err?.message || err);
+    } else if (consecutiveDbFailures === MAX_CONSECUTIVE_FAILURES_TO_LOG + 1) {
+      console.error('🔇 Suppressing further cleanup errors until connection is restored...');
+    }
+  }
+}
+
+// Start cleanup interval (every 5 minutes to reduce load)
+// Run once immediately on startup to clear any stale sessions
+runCleanup();
+
+setInterval(runCleanup, 300000); // 5 minutes instead of 60 seconds
+console.log('Session cleanup scheduler started (5 min interval)');

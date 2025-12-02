@@ -5,6 +5,8 @@ import Login from './pages/Login'
 import Editor from './pages/Editor'
 import JobRunner from './pages/JobRunner'
 import Sandboxes from './pages/Sandboxes'
+import { Layout } from './components/Layout'
+import { AppProvider } from './lib/AppContext'
 import ColorBends from './Background/ColorBends'
 import './App.css'
 
@@ -27,18 +29,18 @@ function App() {
   if (!token) {
     return (
       <>
-        <div className="fixed inset-0 z-0">
+        <div className="fixed inset-0 z-0 opacity-40">
           <ColorBends
             colors={["#ff5c7a", "#8a5cff", "#00ffd1"]}
-            rotation={30}
-            speed={0.3}
-            scale={1.2}
-            frequency={1.4}
-            warpStrength={1.2}
-            mouseInfluence={0.8}
-            parallax={0.6}
-            noise={0.08}
-            transparent
+            rotation={0}
+            autoRotate={-3}
+            speed={0.2}
+            scale={1}
+            frequency={1}
+            warpStrength={1}
+            mouseInfluence={1}
+            parallax={0.5}
+            noise={0.01}
           />
         </div>
         <div className="relative z-10">
@@ -50,28 +52,32 @@ function App() {
 
   return (
     <BrowserRouter>
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <ColorBends
-          colors={["#ff5c7a", "#8a5cff", "#00ffd1"]}
-          rotation={30}
-          speed={0.3}
-          scale={1.2}
-          frequency={1.4}
-          warpStrength={1.2}
-          mouseInfluence={0.8}
-          parallax={0.6}
-          noise={0.08}
-          transparent
-        />
-      </div>
-      <div className="relative z-10 h-screen">
-        <Routes>
-          <Route path="/" element={<RepoBrowser />} />
-          <Route path="/editor" element={<Editor />} />
-          <Route path="/jobs" element={<JobRunner />} />
-          <Route path="/sandboxes" element={<Sandboxes />} />
-        </Routes>
-      </div>
+      <AppProvider>
+        <div className="fixed inset-0 z-0 opacity-40">
+          <ColorBends
+            colors={["#ff5c7a", "#8a5cff", "#00ffd1"]}
+            rotation={0}
+            autoRotate={-3}
+            speed={0.2}
+            scale={1}
+            frequency={1}
+            warpStrength={1}
+            mouseInfluence={1}
+            parallax={0.5}
+            noise={0.01}
+          />
+        </div>
+        <div className="relative z-10 h-screen">
+          <Layout>
+            <Routes>
+              <Route path="/" element={<RepoBrowser />} />
+              <Route path="/editor" element={<Editor />} />
+              <Route path="/jobs" element={<JobRunner />} />
+              <Route path="/sandboxes" element={<Sandboxes />} />
+            </Routes>
+          </Layout>
+        </div>
+      </AppProvider>
     </BrowserRouter>
   )
 }

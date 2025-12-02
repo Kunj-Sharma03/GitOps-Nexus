@@ -15,7 +15,11 @@
 
 @layer base {
   body {
-    @apply bg-dystopia-bg text-dystopia-text font-mono antialiased selection:bg-dystopia-primary/30 selection:text-dystopia-primary;
+    @apply bg-transparent text-dystopia-text font-mono antialiased selection:bg-dystopia-primary/30 selection:text-dystopia-primary;
+  }
+  
+  html {
+    background: transparent;
   }
   
   /* Smooth scrollbar */

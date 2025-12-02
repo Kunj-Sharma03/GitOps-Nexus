@@ -1,18 +1,23 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import MonacoWrapper from '../components/MonacoWrapper'
 import BranchSelector from '../components/BranchSelector'
 import { getFileContent, postCommit, getCommits, postRevert } from '../lib/api'
 import { buildGitHubUrl, buildPermalink } from '../lib/utils'
+import { Button, EmptyState } from '../components/ui'
+import { useAppContext } from '../lib/AppContext'
 
 export default function Editor() {
-  const [params] = useSearchParams()
   const navigate = useNavigate()
-  const repoId = params.get('repoId')
-  const path = params.get('path')
-  const initialBranch = params.get('branch') || 'main'
+  const { selectedRepo, selectedBranch, selectedPath, setSelectedBranch } = useAppContext()
+  
+  // Aliases for convenience
+  const repoId = selectedRepo?.id
+  const path = selectedPath
+  const branch = selectedBranch
+  const setBranch = setSelectedBranch
+  const repoMeta = selectedRepo
 
-  const [branch, setBranch] = useState(initialBranch)
   const [content, setContent] = useState<string>('')
   const [sha, setSha] = useState<string | undefined>(undefined)
   const [loading, setLoading] = useState(false)
@@ -24,39 +29,25 @@ export default function Editor() {
   const [, setDraftExists] = useState(false)
   const [showRecover, setShowRecover] = useState(false)
   const [commits, setCommits] = useState<any[]>([])
-  const [repoMeta, setRepoMeta] = useState<any | null>(null)
   // editor instance stored globally on mount for keyboard shortcuts
   const [showSidebar, setShowSidebar] = useState(true)
 
   useEffect(() => {
-    if (!repoId || !path) return
+    if (!selectedRepo || !selectedPath) return
     setLoading(true)
-    getFileContent(repoId, path, branch)
+    getFileContent(selectedRepo.id, selectedPath, selectedBranch)
       .then((r: any) => {
         setContent(r.content || r)
         if (r.sha) setSha(r.sha)
       })
       .catch((e) => setError(e.message || 'Failed to load file'))
       .finally(() => setLoading(false))
-  }, [repoId, path, branch])
-
-  // fetch repo meta (from cached repo list)
-  useEffect(() => {
-    if (!repoId) return
-    // lazy-load repos and find matching id
-    import('../lib/api').then(({ getRepos }) => {
-      getRepos().then((r: any) => {
-        const repos = r.repos || r
-        const found = Array.isArray(repos) ? repos.find((x: any) => String(x.id) === String(repoId)) : null
-        setRepoMeta(found || null)
-      }).catch(() => setRepoMeta(null))
-    }).catch(() => setRepoMeta(null))
-  }, [repoId])
+  }, [selectedRepo?.id, selectedPath, selectedBranch])
 
   // Check for saved draft when content loads
   useEffect(() => {
-    if (!repoId || !path) return
-    const key = `draft:${repoId}:${path}:${branch}`
+    if (!selectedRepo || !selectedPath) return
+    const key = `draft:${selectedRepo.id}:${selectedPath}:${selectedBranch}`
     const raw = localStorage.getItem(key)
     if (raw) {
       setDraftExists(true)
@@ -250,62 +241,65 @@ export default function Editor() {
 
   if (!repoId || !path) {
     return (
-      <div className="h-screen flex items-center justify-center bg-dystopia-bg text-dystopia-muted font-mono">
-        <div className="text-center">
-          <h1 className="text-xl text-dystopia-secondary mb-2">MISSING PARAMETERS</h1>
-          <p>Editor requires `repoId` and `path` query parameters.</p>
-          <button onClick={() => navigate(-1)} className="mt-4 text-dystopia-primary hover:underline">Go Back</button>
-        </div>
+      <div className="h-full flex items-center justify-center">
+        <EmptyState
+          icon={<span className="text-3xl">✏️</span>}
+          title="Missing Parameters"
+          description="Editor requires repoId and path query parameters"
+          action={<Button onClick={() => navigate(-1)} variant="primary">Go Back</Button>}
+        />
       </div>
     )
   }
 
   return (
-    <div className="h-screen flex flex-col bg-transparent text-dystopia-text overflow-hidden font-mono p-6 gap-6">
-      {/* Floating Header */}
-      <header className="h-16 shrink-0 rounded-2xl border border-dystopia-border/50 bg-dystopia-card/40 backdrop-blur-xl flex items-center px-6 justify-between shadow-2xl relative overflow-hidden z-20">
-         {/* Decorative glow */}
-         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-dystopia-primary/50 to-transparent opacity-50"></div>
-         
-         {/* Left: Back & Path */}
-         <div className="flex items-center gap-6">
+    <div className="h-full flex flex-col text-white overflow-hidden font-mono">
+      {/* Header */}
+      <header className="shrink-0 border-b border-white/10 bg-black/40 backdrop-blur-xl px-4 md:px-6 py-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-4">
             <button 
               onClick={() => navigate(-1)} 
-              className="group flex items-center justify-center w-10 h-10 rounded-full bg-dystopia-bg/50 border border-dystopia-border hover:border-dystopia-primary/50 hover:text-dystopia-primary transition-all"
+              className="flex items-center justify-center w-8 h-8 rounded-full bg-white/5 border border-white/10 hover:border-green-500/50 hover:text-green-400 transition-all"
             >
-              <span className="text-xl group-hover:-translate-x-0.5 transition-transform pb-1">‹</span>
+              ‹
             </button>
-            
-            <div className="flex flex-col">
-               <span className="text-[10px] text-dystopia-muted uppercase tracking-widest font-bold">Editing File</span>
-               <div className="flex items-center gap-2 text-sm font-bold text-dystopia-text tracking-wide">
-                  <span className="text-dystopia-primary opacity-80">{repoId}</span>
-                  <span className="text-dystopia-muted">/</span>
-                  <span className="text-dystopia-accent">{path}</span>
-               </div>
+            <div className="min-w-0">
+              <p className="text-[10px] text-white/40 uppercase tracking-widest">Editing File</p>
+              <h1 className="text-sm md:text-base font-bold truncate">
+                <span className="text-green-400">{repoMeta?.name || repoId}</span>
+                <span className="text-white/30 mx-1">/</span>
+                <span className="text-cyan-400">{path}</span>
+              </h1>
             </div>
-         </div>
-
-         {/* Right: Status */}
-         <div className="flex items-center gap-4">
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowSidebar(s => !s)}
+              className="p-2 rounded border border-white/10 text-white/40 hover:text-white hover:border-white/30 transition-colors md:hidden"
+              title="Toggle sidebar"
+            >
+              ☰
+            </button>
             {dirty ? (
-               <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 text-xs font-bold uppercase tracking-wider animate-pulse shadow-[0_0_10px_rgba(234,179,8,0.2)]">
-                  <div className="w-1.5 h-1.5 rounded-full bg-yellow-500"></div>
-                  Unsaved Changes
-               </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 text-xs font-bold uppercase tracking-wider animate-pulse">
+                <div className="w-1.5 h-1.5 rounded-full bg-yellow-500"></div>
+                Unsaved
+              </div>
             ) : (
-               <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-dystopia-primary/10 border border-dystopia-primary/20 text-dystopia-primary text-xs font-bold uppercase tracking-wider shadow-[0_0_10px_rgba(0,255,65,0.1)]">
-                  <div className="w-1.5 h-1.5 rounded-full bg-dystopia-primary"></div>
-                  All Saved
-               </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-bold uppercase tracking-wider">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-400"></div>
+                Saved
+              </div>
             )}
-         </div>
+          </div>
+        </div>
       </header>
 
       {/* Main Layout */}
-      <div className="flex-1 flex overflow-hidden gap-6 z-10">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         {/* Editor Panel */}
-        <div className={`flex-1 relative rounded-2xl border border-dystopia-border/50 bg-dystopia-card/20 backdrop-blur-md overflow-hidden shadow-2xl flex flex-col transition-all duration-300 ${showSidebar ? '' : ''}`}>
+        <div className="flex-1 flex flex-col bg-transparent overflow-hidden">
           <div className="flex-1 relative">
             <MonacoWrapper 
               value={content}  
@@ -319,141 +313,136 @@ export default function Editor() {
           </div>
           
           {/* Footer Info Bar */}
-          <div className="h-8 border-t border-dystopia-border/30 bg-black/20 flex items-center justify-between px-4 text-[10px] text-dystopia-muted uppercase tracking-wider backdrop-blur-sm">
-             <div className="flex items-center gap-4">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-1 h-1 rounded-full bg-dystopia-accent"></span>
-                  {path?.split('.').pop()?.toUpperCase() || 'TEXT'}
-                </span>
-                <span>UTF-8</span>
-             </div>
-             <div>
-                Ln {content.split('\n').length}
-             </div>
+          <div className="shrink-0 h-7 border-t border-white/10 bg-black/40 flex items-center justify-between px-4 text-[10px] text-white/40 uppercase tracking-wider">
+            <div className="flex items-center gap-4">
+              <span className="flex items-center gap-1.5">
+                <span className="w-1 h-1 rounded-full bg-cyan-400"></span>
+                {path?.split('.').pop()?.toUpperCase() || 'TEXT'}
+              </span>
+              <span>UTF-8</span>
+            </div>
+            <div>Ln {content.split('\n').length}</div>
           </div>
         </div>
 
         {/* Sidebar Panel */}
-        {showSidebar && (
-          <div className="w-80 shrink-0 rounded-2xl border border-dystopia-border/50 bg-dystopia-card/30 backdrop-blur-xl flex flex-col shadow-2xl overflow-hidden">
-            <div className="p-5 border-b border-dystopia-border/50 bg-dystopia-card/20">
-              <h2 className="text-xs font-bold text-dystopia-primary uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                <span className="w-2 h-2 bg-dystopia-primary rounded-full shadow-[0_0_8px_rgba(0,255,65,0.5)]"></span>
-                Commit Control
-              </h2>
+        <aside className={`
+          ${showSidebar ? 'flex' : 'hidden'} md:flex
+          w-full md:w-72 lg:w-80 flex-col border-t md:border-t-0 md:border-l border-white/10 bg-black/50 backdrop-blur-xl
+          fixed md:relative inset-0 top-auto h-[60vh] md:h-auto z-30 md:z-auto
+        `}>
+          {/* Mobile close button */}
+          <button 
+            onClick={() => setShowSidebar(false)}
+            className="md:hidden absolute top-4 right-4 text-white/40 hover:text-white"
+          >
+            ✕
+          </button>
 
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex-1">
-                  <label className="block text-[10px] text-dystopia-muted uppercase tracking-wider mb-2">Branch</label>
-                  <BranchSelector repoId={repoId} value={branch} onChange={setBranch} showLabel={false} />
-                </div>
-                <div className="w-28">
-                  <label className="block text-[10px] text-dystopia-muted uppercase tracking-wider mb-2">Autosave</label>
-                  <div className="flex items-center gap-2 h-[34px] px-2 rounded border border-dystopia-border/50 bg-black/20">
-                    <input id="autosave" type="checkbox" checked={autosave} onChange={(e) => setAutosave(e.target.checked)} className="accent-dystopia-primary" />
-                    <label htmlFor="autosave" className="text-[10px] text-dystopia-muted cursor-pointer select-none">Enabled</label>
-                  </div>
-                </div>
+          <div className="p-4 border-b border-white/10 bg-black/30">
+            <h2 className="text-xs font-bold text-green-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+              Commit Control
+            </h2>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex-1">
+                <label className="block text-[10px] text-white/40 uppercase tracking-wider mb-1.5">Branch</label>
+                <BranchSelector repoId={repoId} value={branch} onChange={setBranch} showLabel={false} />
               </div>
-
-              <div className="mb-4">
-                <label className="block text-[10px] text-dystopia-muted uppercase tracking-wider mb-2">Commit Message</label>
-                <textarea
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  className="w-full bg-black/30 border border-dystopia-border/50 rounded-lg p-3 text-xs text-dystopia-text focus:border-dystopia-primary focus:ring-1 focus:ring-dystopia-primary/50 outline-none transition-all resize-none h-24 placeholder-dystopia-muted/30"
-                  placeholder="Describe your changes..."
-                />
-              </div>
-
-              {/* Quick Actions */}
-              <div className="grid grid-cols-3 gap-2 mb-4">
-                <button onClick={openInGitHub} className="text-[10px] py-1.5 rounded border border-dystopia-border/50 text-dystopia-muted hover:text-dystopia-text hover:bg-dystopia-card/40 transition-colors">GitHub</button>
-                <button onClick={copyPath} className="text-[10px] py-1.5 rounded border border-dystopia-border/50 text-dystopia-muted hover:text-dystopia-text hover:bg-dystopia-card/40 transition-colors">Copy Path</button>
-                <button onClick={copyPermalink} className="text-[10px] py-1.5 rounded border border-dystopia-border/50 text-dystopia-muted hover:text-dystopia-text hover:bg-dystopia-card/40 transition-colors">Permalink</button>
-              </div>
-
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-2 cursor-pointer group">
-                    <div className={`w-3 h-3 rounded-sm border flex items-center justify-center transition-colors ${dryRun ? 'bg-dystopia-primary border-dystopia-primary' : 'border-dystopia-muted group-hover:border-dystopia-text'}`}>
-                       {dryRun && <svg className="w-2 h-2 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
-                    </div>
-                    <input type="checkbox" checked={dryRun} onChange={e => setDryRun(e.target.checked)} className="hidden" />
-                    <span className="text-xs text-dystopia-muted group-hover:text-dystopia-text transition-colors">Dry run</span>
-                  </label>
-                  
-                  {(!autosave || showRecover) && (
-                    <button onClick={() => saveDraft('manual')} className="text-[10px] px-2 py-1 rounded bg-dystopia-card/40 border border-dystopia-border/40 hover:bg-dystopia-primary/10 hover:text-dystopia-primary transition-colors">Draft</button>
-                  )}
-                </div>
-
-                <button
-                  disabled={loading || !dirty}
-                  onClick={doSave}
-                  className={`px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-[0.12em] transition-all shadow-lg ${loading ? 'bg-dystopia-muted/20 text-dystopia-muted' : dirty ? 'bg-dystopia-primary text-black hover:bg-dystopia-primary/90 hover:shadow-[0_0_15px_rgba(0,255,65,0.3)]' : 'bg-dystopia-border/30 text-dystopia-muted'}`}
-                >
-                  {loading ? 'Processing…' : (dryRun ? 'Verify' : 'Commit')}
-                </button>
+              <div>
+                <label className="block text-[10px] text-white/40 uppercase tracking-wider mb-1.5">Auto</label>
+                <label className="flex items-center gap-2 h-[34px] px-2 rounded border border-white/10 bg-black/30 cursor-pointer">
+                  <input type="checkbox" checked={autosave} onChange={(e) => setAutosave(e.target.checked)} className="accent-green-400" />
+                </label>
               </div>
             </div>
 
-            {/* Status / Commit History Area */}
-            <div className="p-5 flex-1 overflow-y-auto custom-scrollbar">
-               {showRecover && (
-                 <div className="p-3 mb-4 bg-dystopia-accent/10 border border-dystopia-accent/30 rounded-lg">
-                   <div className="flex items-start justify-between gap-4">
-                     <div>
-                       <div className="text-xs font-bold text-dystopia-accent uppercase tracking-wider mb-1">Draft Found</div>
-                       <div className="text-[10px] text-dystopia-muted">Local changes detected.</div>
-                     </div>
-                     <div className="flex items-center gap-2">
-                       <button onClick={recoverDraft} className="text-[10px] px-2 py-1 rounded bg-dystopia-accent text-black font-bold">Recover</button>
-                       <button onClick={() => { if (confirm('Discard local draft?')) discardDraft() }} className="text-[10px] px-2 py-1 rounded border border-dystopia-accent/30 text-dystopia-accent hover:bg-dystopia-accent/10">Discard</button>
-                     </div>
-                   </div>
-                 </div>
-               )}
+            <div className="mb-4">
+              <label className="block text-[10px] text-white/40 uppercase tracking-wider mb-1.5">Commit Message</label>
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                className="w-full bg-black/40 border border-white/20 rounded-lg p-3 text-xs text-white focus:border-green-500/50 outline-none transition-all resize-none h-20 placeholder-white/20"
+                placeholder="Describe your changes..."
+              />
+            </div>
 
-               {error && (
-                  <div className="p-3 mb-4 bg-red-500/10 border border-red-500/30 text-red-400 text-xs rounded-lg">
-                      <strong className="block mb-1 uppercase tracking-wider font-bold">Error</strong>
-                      {error}
-                  </div>
-               )}
+            {/* Quick Actions */}
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              <button onClick={openInGitHub} className="text-[10px] py-1.5 rounded border border-white/10 text-white/40 hover:text-white hover:bg-white/5 transition-colors">GitHub</button>
+              <button onClick={copyPath} className="text-[10px] py-1.5 rounded border border-white/10 text-white/40 hover:text-white hover:bg-white/5 transition-colors">Path</button>
+              <button onClick={copyPermalink} className="text-[10px] py-1.5 rounded border border-white/10 text-white/40 hover:text-white hover:bg-white/5 transition-colors">Link</button>
+            </div>
 
-               <div>
-                 <h3 className="text-[10px] font-bold text-dystopia-muted uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    History
-                 </h3>
-                 {commits.length === 0 ? (
-                   <div className="text-[10px] text-dystopia-muted italic opacity-50">No commits available.</div>
-                 ) : (
-                   <div className="space-y-2">
-                     {commits.map((c: any) => (
-                       <div key={c.sha} className="group p-3 bg-black/20 border border-dystopia-border/30 hover:border-dystopia-primary/30 rounded-lg transition-all">
-                          <div className="flex items-start justify-between gap-3 mb-2">
-                            <div className="text-xs font-bold text-dystopia-text truncate group-hover:text-dystopia-primary transition-colors">{c.message || c.subject || 'Commit'}</div>
-                            <span className="font-mono text-[10px] text-dystopia-accent bg-dystopia-accent/10 px-1.5 py-0.5 rounded">{(c.sha || '').slice(0,7)}</span>
-                          </div>
-                          
-                          <div className="flex items-center justify-between">
-                             <div className="text-[10px] text-dystopia-muted">
-                               {c.author || 'Unknown'} • {c.date ? new Date(c.date).toLocaleDateString() : ''}
-                             </div>
-                             <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => handleRevert(c.sha)} className="text-[10px] text-dystopia-primary hover:underline">Revert</button>
-                             </div>
-                          </div>
-                       </div>
-                     ))}
-                   </div>
-                 )}
-               </div>
+            <div className="flex items-center justify-between gap-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={dryRun} onChange={e => setDryRun(e.target.checked)} className="accent-green-400" />
+                <span className="text-xs text-white/60">Dry run</span>
+              </label>
+
+              <Button
+                disabled={loading || !dirty}
+                onClick={doSave}
+                variant="primary"
+                size="sm"
+                loading={loading}
+              >
+                {dryRun ? 'Verify' : 'Commit'}
+              </Button>
             </div>
           </div>
-        )}
+
+          {/* Status / Commit History Area */}
+          <div className="flex-1 p-4 overflow-y-auto custom-scrollbar">
+            {showRecover && (
+              <div className="p-3 mb-4 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-1">Draft Found</div>
+                    <div className="text-[10px] text-white/40">Local changes detected.</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button onClick={recoverDraft} variant="secondary" size="sm">Recover</Button>
+                    <Button onClick={() => { if (confirm('Discard local draft?')) discardDraft() }} variant="ghost" size="sm">Discard</Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="p-3 mb-4 bg-red-500/10 border border-red-500/30 text-red-400 text-xs rounded-lg">
+                <strong className="block mb-1 uppercase tracking-wider font-bold">Error</strong>
+                {error}
+              </div>
+            )}
+
+            <div>
+              <h3 className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-3">History</h3>
+              {commits.length === 0 ? (
+                <div className="text-[10px] text-white/30 italic">No commits available.</div>
+              ) : (
+                <div className="space-y-2">
+                  {commits.map((c: any) => (
+                    <div key={c.sha} className="group p-3 bg-black/30 border border-white/10 hover:border-green-500/30 rounded-lg transition-all">
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="text-xs font-bold text-white truncate group-hover:text-green-400 transition-colors">{c.message || c.subject || 'Commit'}</div>
+                        <span className="font-mono text-[10px] text-cyan-400 bg-cyan-400/10 px-1.5 py-0.5 rounded">{(c.sha || '').slice(0,7)}</span>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="text-[10px] text-white/40">
+                          {c.author || 'Unknown'} • {c.date ? new Date(c.date).toLocaleDateString() : ''}
+                        </div>
+                        <button onClick={() => handleRevert(c.sha)} className="text-[10px] text-green-400 hover:underline opacity-0 group-hover:opacity-100 transition-opacity">Revert</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   )

@@ -167,12 +167,12 @@ export function Terminal({ sessionId, onClose }: TerminalProps) {
   }, [sessionId]);
 
   return (
-    <div className="flex flex-col h-full rounded-2xl overflow-hidden shadow-2xl shadow-black/50 border border-white/10 backdrop-blur-xl bg-gradient-to-br from-black/80 via-black/70 to-black/80">
+    <div className="flex flex-col h-full rounded-2xl overflow-hidden shadow-2xl shadow-black/50 border border-white/5 backdrop-blur-md bg-gradient-to-br from-black/60 via-black/50 to-black/60">
       {/* Inject custom styles */}
       <style>{terminalStyles}</style>
       
       {/* Glassmorphic Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white/5 border-b border-white/10 backdrop-blur-md">
+      <div className="flex items-center justify-between px-4 py-3 bg-white/[0.03] border-b border-white/5 backdrop-blur-sm">
         <div className="flex items-center gap-4">
           {/* Traffic lights */}
           <div className="flex gap-2">
@@ -234,7 +234,7 @@ export function Terminal({ sessionId, onClose }: TerminalProps) {
       </div>
       
       {/* Bottom bar */}
-      <div className="px-4 py-2 bg-white/5 border-t border-white/10 flex items-center justify-between">
+      <div className="px-4 py-2 bg-white/[0.03] border-t border-white/5 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <span className="text-[10px] text-white/30 uppercase tracking-wider">Shell: /bin/sh</span>
           <span className="text-[10px] text-white/30">•</span>

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getJobs, createJob } from '../lib/api'
 import { JobLogs } from '../components/JobLogs'
 import BranchSelector from '../components/BranchSelector'
-import { Button, StatusBadge, EmptyState } from '../components/ui'
+import { Button, StatusBadge, EmptyState, Toast } from '../components/ui'
 import { useAppContext } from '../lib/AppContext'
 
 export default function JobRunner() {
@@ -16,6 +16,7 @@ export default function JobRunner() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [filterStatus, setFilterStatus] = useState('ALL')
+  const [toast, setToast] = useState<{ type: 'success' | 'error', message: string } | null>(null)
 
   useEffect(() => {
     if (!selectedRepo) return
@@ -56,7 +57,7 @@ export default function JobRunner() {
       a.remove()
     } catch (err) {
       console.error(err)
-      alert('Failed to download artifacts')
+      setToast({ type: 'error', message: 'Failed to download artifacts' })
     }
   }
 
@@ -119,6 +120,13 @@ export default function JobRunner() {
 
       {/* Main Layout */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        {toast && (
+          <Toast
+            type={toast.type}
+            message={toast.message}
+            onClose={() => setToast(null)}
+          />
+        )}
         {/* Sidebar: Job List */}
         <aside className="w-full md:w-72 lg:w-80 flex flex-col border-b md:border-b-0 md:border-r border-white/10 bg-black/50 backdrop-blur-xl max-h-64 md:max-h-none overflow-hidden">
           {/* New Job Form */}

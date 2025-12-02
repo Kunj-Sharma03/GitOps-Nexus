@@ -4,7 +4,7 @@ import MonacoWrapper from '../components/MonacoWrapper'
 import BranchSelector from '../components/BranchSelector'
 import { getFileContent, postCommit, getCommits, postRevert } from '../lib/api'
 import { buildGitHubUrl, buildPermalink } from '../lib/utils'
-import { Button, EmptyState } from '../components/ui'
+import { Button, EmptyState, ConfirmModal, Toast } from '../components/ui'
 import { useAppContext } from '../lib/AppContext'
 
 export default function Editor() {
@@ -23,7 +23,6 @@ export default function Editor() {
   const [loading, setLoading] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [message, setMessage] = useState('Update via GitOps Nexus')
-  const [dryRun, setDryRun] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [autosave, setAutosave] = useState(true)
   const [, setDraftExists] = useState(false)
@@ -31,6 +30,16 @@ export default function Editor() {
   const [commits, setCommits] = useState<any[]>([])
   // editor instance stored globally on mount for keyboard shortcuts
   const [showSidebar, setShowSidebar] = useState(true)
+
+  // UI State
+  const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info', message: string } | null>(null)
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    variant?: 'danger' | 'primary';
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} })
 
   useEffect(() => {
     if (!selectedRepo || !selectedPath) return
@@ -77,37 +86,43 @@ export default function Editor() {
     setLoading(true)
     setError(null)
     try {
-      const res = await postCommit(repoId, path, content, message, branch, dryRun, sha)
+      const res = await postCommit(repoId, path, content, message, branch, false, sha)
       console.log('save response', res)
       setDirty(false)
       
-      if (!dryRun && res.result && res.result.content && res.result.content.sha) {
+      if (res.result && res.result.content && res.result.content.sha) {
         setSha(res.result.content.sha)
       }
 
-      if (dryRun) alert('Dry run OK — no changes pushed')
-      else alert('Saved and committed')
+      setToast({ type: 'success', message: 'Saved and committed' })
     } catch (e: any) {
       if (e.message && (e.message.includes('409') || e.message.includes('Conflict'))) {
-        if (confirm('Conflict detected: File has been modified on server. Overwrite anyway?')) {
-          try {
-            const res = await postCommit(repoId, path, content, message, branch, dryRun, undefined)
-            setDirty(false)
-            if (!dryRun && res.result && res.result.content && res.result.content.sha) {
-              setSha(res.result.content.sha)
+        setConfirmModal({
+          isOpen: true,
+          title: 'Conflict Detected',
+          message: 'File has been modified on server. Overwrite anyway?',
+          variant: 'danger',
+          onConfirm: async () => {
+            setConfirmModal(prev => ({ ...prev, isOpen: false }))
+            try {
+              const res = await postCommit(repoId, path, content, message, branch, false, undefined)
+              setDirty(false)
+              if (res.result && res.result.content && res.result.content.sha) {
+                setSha(res.result.content.sha)
+              }
+              setToast({ type: 'success', message: 'Overwritten successfully' })
+            } catch (retryErr: any) {
+              setError(retryErr.message || String(retryErr))
             }
-            alert('Overwritten successfully')
-          } catch (retryErr: any) {
-            setError(retryErr.message || String(retryErr))
           }
-        }
+        })
       } else {
         setError(e.message || String(e))
       }
     } finally {
       setLoading(false)
     }
-  }, [repoId, path, content, message, branch, dryRun, sha])
+  }, [repoId, path, content, message, branch, sha])
 
   // Draft helpers
   const draftKey = () => `draft:${repoId}:${path}:${branch}`
@@ -159,22 +174,30 @@ export default function Editor() {
   }
 
   // Rollback / revert commit
-  const handleRevert = async (sha: string) => {
+  const handleRevert = (sha: string) => {
     if (!repoId || !path) return setError('Missing context')
-    const sure = window.confirm(`Revert to commit ${sha}? This will ${dryRun ? 'simulate' : 'actually'} create a revert commit.`)
-    if (!sure) return
-    setLoading(true)
-    try {
-      await postRevert(repoId, path, sha, branch, dryRun)
-      alert(dryRun ? 'Revert simulated successfully' : 'Revert committed')
-      // refresh commits after action
-      const updated = await getCommits(repoId, path, 30)
-      setCommits(updated.commits || updated || [])
-    } catch (e: any) {
-      setError(e.message || String(e))
-    } finally {
-      setLoading(false)
-    }
+    
+    setConfirmModal({
+      isOpen: true,
+      title: 'Revert Commit',
+      message: `Revert to commit ${sha}? This will create a revert commit.`,
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }))
+        setLoading(true)
+        try {
+          await postRevert(repoId, path, sha, branch, false)
+          setToast({ type: 'success', message: 'Revert committed' })
+          // refresh commits after action
+          const updated = await getCommits(repoId, path, 30)
+          setCommits(updated.commits || updated || [])
+        } catch (e: any) {
+          setError(e.message || String(e))
+        } finally {
+          setLoading(false)
+        }
+      }
+    })
   }
 
   // Quick actions
@@ -182,10 +205,10 @@ export default function Editor() {
     try {
       const url = buildGitHubUrl(repoMeta, branch, path || undefined)
       if (url) window.open(url, '_blank')
-      else alert('No GitHub URL available for this repository')
+      else setToast({ type: 'error', message: 'No GitHub URL available for this repository' })
     } catch (e) {
       console.error(e)
-      alert('Unable to build GitHub URL')
+      setToast({ type: 'error', message: 'Unable to build GitHub URL' })
     }
   }
 
@@ -193,10 +216,10 @@ export default function Editor() {
     try {
       const txt = `${repoMeta?.name || repoId}:${path}`
       await navigator.clipboard.writeText(txt)
-      alert('Path copied to clipboard')
+      setToast({ type: 'info', message: 'Path copied to clipboard' })
     } catch (e) {
       console.error(e)
-      alert('Failed to copy')
+      setToast({ type: 'error', message: 'Failed to copy' })
     }
   }
 
@@ -205,10 +228,10 @@ export default function Editor() {
       const base = window.location.origin
       const url = buildPermalink(base, String(repoId), String(path || ''), branch)
       await navigator.clipboard.writeText(url)
-      alert('Permalink copied to clipboard')
+      setToast({ type: 'info', message: 'Permalink copied to clipboard' })
     } catch (e) {
       console.error(e)
-      alert('Failed to copy permalink')
+      setToast({ type: 'error', message: 'Failed to copy permalink' })
     }
   }
 
@@ -253,7 +276,28 @@ export default function Editor() {
   }
 
   return (
-    <div className="h-full flex flex-col text-white overflow-hidden font-mono">
+    <div className="h-full flex flex-col text-white overflow-hidden font-mono relative">
+      {/* Toast Notification */}
+      {toast && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50">
+          <Toast 
+            type={toast.type as any} 
+            message={toast.message} 
+            onClose={() => setToast(null)} 
+          />
+        </div>
+      )}
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant={confirmModal.variant}
+      />
+
       {/* Header */}
       <header className="shrink-0 border-b border-white/10 bg-black/40 backdrop-blur-xl px-4 md:px-6 py-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -375,12 +419,7 @@ export default function Editor() {
               <button onClick={copyPermalink} className="text-[10px] py-1.5 rounded border border-white/10 text-white/40 hover:text-white hover:bg-white/5 transition-colors">Link</button>
             </div>
 
-            <div className="flex items-center justify-between gap-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={dryRun} onChange={e => setDryRun(e.target.checked)} className="accent-green-400" />
-                <span className="text-xs text-white/60">Dry run</span>
-              </label>
-
+            <div className="flex items-center justify-end gap-3">
               <Button
                 disabled={loading || !dirty}
                 onClick={doSave}
@@ -388,7 +427,7 @@ export default function Editor() {
                 size="sm"
                 loading={loading}
               >
-                {dryRun ? 'Verify' : 'Commit'}
+                Commit Changes
               </Button>
             </div>
           </div>
@@ -404,7 +443,18 @@ export default function Editor() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Button onClick={recoverDraft} variant="secondary" size="sm">Recover</Button>
-                    <Button onClick={() => { if (confirm('Discard local draft?')) discardDraft() }} variant="ghost" size="sm">Discard</Button>
+                    <Button onClick={() => { 
+                      setConfirmModal({
+                        isOpen: true,
+                        title: 'Discard Draft',
+                        message: 'Are you sure you want to discard your local draft? This cannot be undone.',
+                        variant: 'danger',
+                        onConfirm: () => {
+                          discardDraft()
+                          setConfirmModal(prev => ({ ...prev, isOpen: false }))
+                        }
+                      })
+                    }} variant="ghost" size="sm">Discard</Button>
                   </div>
                 </div>
               </div>

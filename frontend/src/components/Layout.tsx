@@ -3,14 +3,14 @@
  */
 
 import type { ReactNode } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Outlet } from 'react-router-dom';
 
 interface LayoutProps {
-  children: ReactNode;
+  children?: ReactNode;
 }
 
 const navItems = [
-  { path: '/', label: 'Repositories', icon: '📁' },
+  { path: '/dashboard', label: 'Repositories', icon: '📁' },
   { path: '/jobs', label: 'CI/CD', icon: '⚡' },
   { path: '/sandboxes', label: 'Sandboxes', icon: '📦' },
 ];
@@ -31,7 +31,7 @@ export function Layout({ children }: LayoutProps) {
         <div className="px-4 md:px-6">
           <div className="flex items-center justify-between h-14 md:h-16">
             {/* Logo */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/dashboard')}>
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-400 to-cyan-500 flex items-center justify-center font-black text-black text-sm">
                 G
               </div>
@@ -95,7 +95,7 @@ export function Layout({ children }: LayoutProps) {
 
       {/* Main Content */}
       <main className="flex-1 overflow-hidden">
-        {children}
+        {children || <Outlet />}
       </main>
     </div>
   );

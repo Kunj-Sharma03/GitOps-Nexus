@@ -4,8 +4,8 @@ import BranchSelector from '../components/BranchSelector'
 import FileViewer from '../components/FileViewer'
 import CollaboratorsPanel, { RoleBadge } from '../components/CollaboratorsPanel'
 import { getFileContent, createRepo, getRepos } from '../lib/api'
-import { buildGitHubUrl, buildPermalink } from '../lib/utils'
-import { Button, GlassCard, EmptyState } from '../components/ui'
+import { buildGitHubUrl } from '../lib/utils'
+import { Button, GlassCard, EmptyState, Toast } from '../components/ui'
 import { useAppContext } from '../lib/AppContext'
 
 import { useNavigate } from 'react-router-dom'
@@ -25,6 +25,7 @@ export default function RepoBrowser() {
   
   // Collaborators Panel
   const [isCollabOpen, setIsCollabOpen] = useState(false)
+  const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info', message: string } | null>(null)
 
   const navigate = useNavigate()
   
@@ -69,15 +70,27 @@ export default function RepoBrowser() {
       setRefreshKey(k => k + 1)
       setIsAddRepoOpen(false)
       setNewRepoUrl('')
-    } catch (err) {
-      alert('Failed to add repo: ' + err)
+      setToast({ type: 'success', message: 'Repository added successfully' })
+    } catch (err: any) {
+      setToast({ type: 'error', message: 'Failed to add repo: ' + (err.message || String(err)) })
     } finally {
       setIsAddingRepo(false)
     }
   }
 
   return (
-    <div className="h-full flex flex-col text-white font-mono overflow-hidden">
+    <div className="h-full flex flex-col text-white font-mono overflow-hidden relative">
+      {/* Toast Notification */}
+      {toast && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50">
+          <Toast 
+            type={toast.type as any} 
+            message={toast.message} 
+            onClose={() => setToast(null)} 
+          />
+        </div>
+      )}
+
       {/* Compact Header */}
       <header className="shrink-0 border-b border-white/10 bg-black/40 backdrop-blur-xl px-4 md:px-6 py-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -146,18 +159,19 @@ export default function RepoBrowser() {
                   >
                     ⚡ CI / Jobs
                   </Button>
-                  <Button
-                    disabled={!selectedPath || !canWrite}
-                    onClick={() => {
-                      if (!selectedRepo || !selectedPath) return
-                      navigate(`/editor`)
-                    }}
-                    variant="primary"
-                    size="sm"
-                    title={!canWrite ? 'You need Write access to edit files' : undefined}
-                  >
-                    ✎ Edit File
-                  </Button>
+                  <div title={!canWrite ? 'You need Write access to edit files' : undefined}>
+                    <Button
+                      disabled={!selectedPath || !canWrite}
+                      onClick={() => {
+                        if (!selectedRepo || !selectedPath) return
+                        navigate(`/editor`)
+                      }}
+                      variant="primary"
+                      size="sm"
+                    >
+                      ✎ Edit File
+                    </Button>
+                  </div>
                   {!canWrite && selectedPath && (
                     <span className="text-[10px] text-white/40 italic">Read-only access</span>
                   )}
@@ -167,6 +181,7 @@ export default function RepoBrowser() {
                     onClick={() => {
                       const url = buildGitHubUrl(selectedRepo, selectedBranch, selectedPath || undefined)
                       if (url) window.open(url, '_blank')
+                      else setToast({ type: 'error', message: 'No GitHub URL available' })
                     }}
                     className="p-2 rounded text-white/40 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-30"
                     title="Open in GitHub"

@@ -139,6 +139,7 @@ interface ButtonProps {
   onClick?: () => void;
   className?: string;
   type?: 'button' | 'submit';
+  title?: string;
 }
 
 export function Button({ 
@@ -149,7 +150,8 @@ export function Button({
   loading = false,
   onClick,
   className = '',
-  type = 'button'
+  type = 'button',
+  title
 }: ButtonProps) {
   const baseClasses = 'inline-flex items-center justify-center font-medium uppercase tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
   
@@ -172,6 +174,7 @@ export function Button({
       onClick={onClick}
       disabled={disabled || loading}
       className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+      title={title}
     >
       {loading && (
         <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
@@ -291,35 +294,133 @@ export function EmptyState({ icon, title, description, action }: EmptyStateProps
   );
 }
 
-// ============ TOAST / NOTIFICATION ============
+// ============ MODAL ============
 
-type ToastType = 'success' | 'error' | 'warning' | 'info';
-
-interface ToastProps {
-  type: ToastType;
-  message: string;
-  onClose?: () => void;
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+  footer?: ReactNode;
+  size?: 'sm' | 'md' | 'lg';
 }
 
-const toastStyles: Record<ToastType, { bg: string; icon: string }> = {
-  success: { bg: 'bg-green-500/20 border-green-500/30', icon: '✓' },
-  error: { bg: 'bg-red-500/20 border-red-500/30', icon: '✕' },
-  warning: { bg: 'bg-yellow-500/20 border-yellow-500/30', icon: '⚠' },
-  info: { bg: 'bg-blue-500/20 border-blue-500/30', icon: 'ℹ' },
-};
+export function Modal({ isOpen, onClose, title, children, footer, size = 'md' }: ModalProps) {
+  if (!isOpen) return null;
 
-export function Toast({ type, message, onClose }: ToastProps) {
-  const styles = toastStyles[type];
-  
+  const sizeClasses = {
+    sm: 'max-w-sm',
+    md: 'max-w-md',
+    lg: 'max-w-2xl',
+  };
+
   return (
-    <div className={`flex items-center gap-3 px-4 py-3 rounded-lg border backdrop-blur-md ${styles.bg} animate-in slide-in-from-top-2 duration-200`}>
-      <span className="text-lg">{styles.icon}</span>
-      <span className="text-sm text-white/90 flex-1">{message}</span>
-      {onClose && (
-        <button onClick={onClose} className="text-white/50 hover:text-white">
-          ✕
-        </button>
-      )}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className={`w-full ${sizeClasses[size]} relative animate-in zoom-in-95 duration-200`}>
+        <GlassCard padding="lg" className="relative">
+          <button 
+            onClick={onClose}
+            className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
+          >
+            ✕
+          </button>
+          
+          <h2 className="text-lg font-bold text-white mb-6 uppercase tracking-widest border-b border-white/10 pb-4">
+            {title}
+          </h2>
+          
+          <div className="mb-8 text-white/80">
+            {children}
+          </div>
+
+          {footer && (
+            <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+              {footer}
+            </div>
+          )}
+        </GlassCard>
+      </div>
     </div>
   );
 }
+
+// ============ CONFIRM MODAL ============
+
+interface ConfirmModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  variant?: 'danger' | 'primary';
+  loading?: boolean;
+}
+
+export function ConfirmModal({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  title, 
+  message, 
+  confirmText = 'Confirm', 
+  cancelText = 'Cancel',
+  variant = 'primary',
+  loading = false
+}: ConfirmModalProps) {
+  return (
+    <Modal 
+      isOpen={isOpen} 
+      onClose={onClose} 
+      title={title}
+      size="sm"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={loading}>
+            {cancelText}
+          </Button>
+          <Button variant={variant} onClick={onConfirm} loading={loading}>
+            {confirmText}
+          </Button>
+        </>
+      }
+    >
+      <p className="text-sm text-white/70 leading-relaxed">
+        {message}
+      </p>
+    </Modal>
+  );
+}
+
+// ============ TOAST ============
+
+interface ToastProps {
+  type: 'success' | 'error' | 'info';
+  message: string;
+  onClose: () => void;
+  duration?: number;
+}
+
+export function Toast({ type, message, onClose, duration = 3000 }: ToastProps) {
+  // Auto-close after duration
+  if (duration > 0) {
+    setTimeout(onClose, duration);
+  }
+
+  const styles = {
+    success: 'bg-green-500/10 border-green-500/50 text-green-400',
+    error: 'bg-red-500/10 border-red-500/50 text-red-400',
+    info: 'bg-blue-500/10 border-blue-500/50 text-blue-400',
+  };
+
+  return (
+    <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-lg border backdrop-blur-xl shadow-xl animate-in slide-in-from-bottom-5 duration-300 ${styles[type]}`}>
+      <span className="text-sm font-medium">{message}</span>
+      <button onClick={onClose} className="opacity-50 hover:opacity-100 transition-opacity">
+        ✕
+      </button>
+    </div>
+  );
+}
+

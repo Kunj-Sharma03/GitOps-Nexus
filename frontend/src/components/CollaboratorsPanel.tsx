@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from 'react'
-import { Button, GlassCard } from './ui'
+import { Button, GlassCard, Toast, ConfirmModal } from './ui'
 import { getCollaborators, addCollaborator, removeCollaborator, updateCollaboratorRole } from '../lib/api'
 
 type RepoRole = 'OWNER' | 'ADMIN' | 'WRITE' | 'VIEWER'
@@ -64,6 +64,16 @@ export default function CollaboratorsPanel({ repoId, userRole, isOpen, onClose }
   const [addingUser, setAddingUser] = useState(false)
   const [addError, setAddError] = useState<string | null>(null)
 
+  // UI State
+  const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info', message: string } | null>(null)
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    variant?: 'danger' | 'primary';
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} })
+
   const canManage = userRole === 'OWNER' || userRole === 'ADMIN'
 
   useEffect(() => {
@@ -96,6 +106,7 @@ export default function CollaboratorsPanel({ repoId, userRole, isOpen, onClose }
       setNewEmail('')
       setNewRole('VIEWER')
       setShowAddForm(false)
+      setToast({ type: 'success', message: 'Collaborator added' })
       loadCollaborators()
     } catch (err: any) {
       setAddError(err.message || 'Failed to add collaborator')
@@ -107,27 +118,57 @@ export default function CollaboratorsPanel({ repoId, userRole, isOpen, onClose }
   const handleUpdateRole = async (userId: string, newRole: RepoRole) => {
     try {
       await updateCollaboratorRole(repoId, userId, newRole)
+      setToast({ type: 'success', message: 'Role updated' })
       loadCollaborators()
     } catch (err: any) {
-      alert('Failed to update role: ' + err.message)
+      setToast({ type: 'error', message: 'Failed to update role: ' + err.message })
     }
   }
 
-  const handleRemove = async (userId: string, userName: string) => {
-    if (!confirm(`Remove ${userName} from this repository?`)) return
-    
-    try {
-      await removeCollaborator(repoId, userId)
-      loadCollaborators()
-    } catch (err: any) {
-      alert('Failed to remove: ' + err.message)
-    }
+  const handleRemove = (userId: string, userName: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Remove Collaborator',
+      message: `Remove ${userName} from this repository?`,
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }))
+        try {
+          await removeCollaborator(repoId, userId)
+          setToast({ type: 'success', message: 'Collaborator removed' })
+          loadCollaborators()
+        } catch (err: any) {
+          setToast({ type: 'error', message: 'Failed to remove: ' + err.message })
+        }
+      }
+    })
   }
 
   if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      {/* Toast Notification */}
+      {toast && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[60]">
+          <Toast 
+            type={toast.type as any} 
+            message={toast.message} 
+            onClose={() => setToast(null)} 
+          />
+        </div>
+      )}
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant={confirmModal.variant}
+      />
+
       <GlassCard className="w-full max-w-lg max-h-[80vh] flex flex-col" padding="none">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-white/10">

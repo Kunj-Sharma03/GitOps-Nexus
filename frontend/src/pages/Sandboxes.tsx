@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getSessions, createSession, deleteSession, getRepos } from '../lib/api'
 import { Terminal } from '../components/Terminal'
-import { Button, StatusBadge, GlassCard, EmptyState, Skeleton } from '../components/ui'
+import { Button, StatusBadge, GlassCard, EmptyState, Skeleton, ConfirmModal, Toast } from '../components/ui'
 
 export default function Sandboxes() {
   const [sessions, setSessions] = useState<any[]>([])
@@ -12,6 +12,21 @@ export default function Sandboxes() {
   const [ttl, setTtl] = useState(30)
   const [creating, setCreating] = useState(false)
   const [terminalSessionId, setTerminalSessionId] = useState<string | null>(null)
+  
+  // UI State
+  const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info', message: string } | null>(null)
+  const [confirmAction, setConfirmAction] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => Promise<void>;
+    variant?: 'danger' | 'primary';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: async () => {},
+  })
 
   const loadData = async () => {
     try {
@@ -40,25 +55,46 @@ export default function Sandboxes() {
       await loadData()
       setIsCreateOpen(false)
       setSelectedRepoId('')
-    } catch (err) {
-      alert('Failed to create session: ' + err)
+      setToast({ type: 'success', message: 'Sandbox launched successfully' })
+    } catch (err: any) {
+      setToast({ type: 'error', message: 'Failed to create session: ' + (err.message || String(err)) })
     } finally {
       setCreating(false)
     }
   }
 
-  const handleTerminate = async (id: string) => {
-    if (!confirm('Are you sure you want to terminate this sandbox?')) return
-    try {
-      await deleteSession(id)
-      await loadData()
-    } catch (err) {
-      alert('Failed to terminate session: ' + err)
-    }
+  const confirmTerminate = (id: string) => {
+    setConfirmAction({
+      isOpen: true,
+      title: 'Terminate Sandbox',
+      message: 'Are you sure you want to terminate this sandbox? This action cannot be undone and all data in the container will be lost.',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await deleteSession(id)
+          await loadData()
+          setConfirmAction(prev => ({ ...prev, isOpen: false }))
+          setToast({ type: 'success', message: 'Sandbox terminated' })
+        } catch (err: any) {
+          setToast({ type: 'error', message: 'Failed to terminate session: ' + (err.message || String(err)) })
+        }
+      }
+    })
   }
 
   return (
     <div className="h-full flex flex-col text-white font-mono overflow-hidden relative">
+      {/* Toast Notification */}
+      {toast && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[60]">
+          <Toast 
+            type={toast.type as any} 
+            message={toast.message} 
+            onClose={() => setToast(null)} 
+          />
+        </div>
+      )}
+
       {/* Header */}
       <header className="shrink-0 border-b border-white/10 bg-black/40 backdrop-blur-xl px-4 md:px-6 py-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -133,7 +169,7 @@ export default function Sandboxes() {
                     </Button>
                   )}
                   <Button 
-                    onClick={() => handleTerminate(session.id)}
+                    onClick={() => confirmTerminate(session.id)}
                     variant="danger"
                     size="sm"
                     className="ml-auto"
@@ -146,6 +182,17 @@ export default function Sandboxes() {
           </div>
         )}
       </main>
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmAction.isOpen}
+        onClose={() => setConfirmAction(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmAction.onConfirm}
+        title={confirmAction.title}
+        message={confirmAction.message}
+        variant={confirmAction.variant}
+        confirmText="Terminate"
+      />
 
       {/* Create Modal */}
       {isCreateOpen && (

@@ -66,7 +66,7 @@ export default async function sessionStart(data: SessionStartJobData) {
       }
 
       const container = await docker.createContainer({
-        Image: 'node:18-alpine',
+        Image: 'gitops-sandbox:latest',
         Cmd: ['tail', '-f', '/dev/null'],
         name: containerName,
         User: 'node',

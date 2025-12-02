@@ -8,6 +8,7 @@ export default defineConfig({
   },
   engine: "classic",
   datasource: {
-    url: env("DATABASE_URL"),
+    // Use direct connection for migrations (not pgbouncer)
+    url: env("DIRECT_URL"),
   },
 });

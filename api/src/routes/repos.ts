@@ -5,6 +5,7 @@ import { getBranches, getFileTree, readFile, readFileWithMeta, findReadme, parse
 import { getFileAtRef } from '../lib/git';
 import { cacheDelPrefix, getCacheStats, invalidateRepoCache } from '../lib/cache';
 import { ciQueue } from '../lib/queue';
+import { getUserAccessibleRepos, getUserRepoRole } from '../lib/rbac';
 
 const router = Router();
 
@@ -62,10 +63,8 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 
 router.get('/', async (req: AuthRequest, res: Response) => {
   try {
-    const repos = await prisma.repo.findMany({
-      where: { userId: req.userId! },
-      orderBy: { createdAt: 'desc' }
-    });
+    // Use RBAC-aware function to get all accessible repos (owned + collaborating)
+    const repos = await getUserAccessibleRepos(req.userId!);
     
     res.json({ repos });
   } catch (error) {
@@ -75,8 +74,20 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 
 router.get('/:id', async (req: AuthRequest, res: Response) => {
   try {
-    const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
-    if (!repo || String(repo.userId) !== String(req.userId)) {
+    // Check if user has access to this repo
+    const role = await getUserRepoRole(req.userId!, req.params.id);
+    if (!role) {
+      return res.status(404).json({ error: 'Repo not found' });
+    }
+    
+    const repo = await prisma.repo.findUnique({ 
+      where: { id: req.params.id },
+      include: {
+        user: { select: { id: true, name: true, email: true, avatar: true } }
+      }
+    });
+    
+    if (!repo) {
       return res.status(404).json({ error: 'Repo not found' });
     }
     
@@ -88,8 +99,11 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
 
 router.get('/:id/branches', async (req: AuthRequest, res: Response) => {
   try {
+    const role = await getUserRepoRole(req.userId!, req.params.id);
+    if (!role) return res.status(404).json({ error: 'Repo not found' });
+    
     const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
-    if (!repo || String(repo.userId) !== String(req.userId)) return res.status(404).json({ error: 'Repo not found' });
+    if (!repo) return res.status(404).json({ error: 'Repo not found' });
 
     const branches = await getBranches(repo.gitUrl);
     res.json({ branches });
@@ -106,8 +120,11 @@ router.get('/:id/branches', async (req: AuthRequest, res: Response) => {
 router.get('/:id/commits', async (req: AuthRequest, res: Response) => {
   try {
     const { path, limit } = req.query;
+    const role = await getUserRepoRole(req.userId!, req.params.id);
+    if (!role) return res.status(404).json({ error: 'Repo not found' });
+    
     const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
-    if (!repo || String(repo.userId) !== String(req.userId)) return res.status(404).json({ error: 'Repo not found' });
+    if (!repo) return res.status(404).json({ error: 'Repo not found' });
 
     const n = limit ? Math.min(200, Number(limit)) : 20;
     const commits = await listCommits(repo.gitUrl, path as string | undefined, n);
@@ -136,8 +153,11 @@ router.get('/:id/files', async (req: AuthRequest, res: Response) => {
   try {
     const { branch } = req.query;
     
+    const role = await getUserRepoRole(req.userId!, req.params.id);
+    if (!role) return res.status(404).json({ error: 'Repo not found' });
+    
     const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
-    if (!repo || String(repo.userId) !== String(req.userId)) return res.status(404).json({ error: 'Repo not found' });
+    if (!repo) return res.status(404).json({ error: 'Repo not found' });
 
     const files = await getFileTree(repo.gitUrl, (branch as string) || repo.defaultBranch);
     res.json({ files });
@@ -153,9 +173,12 @@ router.get('/:id/files', async (req: AuthRequest, res: Response) => {
 router.get('/:id/file-content', async (req: AuthRequest, res: Response) => {
   try {
     const { path, branch } = req.query;
+    
+    const role = await getUserRepoRole(req.userId!, req.params.id);
+    if (!role) return res.status(404).json({ error: 'Repo not found' });
 
     const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
-    if (!repo || String(repo.userId) !== String(req.userId)) return res.status(404).json({ error: 'Repo not found' });
+    if (!repo) return res.status(404).json({ error: 'Repo not found' });
 
     if (!path) {
       // No path provided -> try to find README automatically
@@ -198,8 +221,11 @@ router.get('/:id/diff', async (req: AuthRequest, res: Response) => {
     const { base, head } = req.query;
     if (!base || !head) return res.status(400).json({ error: 'base and head query parameters are required' });
 
+    const role = await getUserRepoRole(req.userId!, req.params.id);
+    if (!role) return res.status(404).json({ error: 'Repo not found' });
+    
     const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
-    if (!repo || String(repo.userId) !== String(req.userId)) return res.status(404).json({ error: 'Repo not found' });
+    if (!repo) return res.status(404).json({ error: 'Repo not found' });
 
     const diff = await compareCommits(repo.gitUrl, base as string, head as string);
     return res.json({ diff });
@@ -217,8 +243,13 @@ router.post('/:id/commit', async (req: AuthRequest, res: Response) => {
     console.log('[repos] request body:', { path, branch, message, parentSha, contentLength: typeof content === 'string' ? Buffer.byteLength(content, 'utf8') : null });
     if (!path || typeof content !== 'string') return res.status(400).json({ error: 'path and content are required in body' });
 
+    // Check WRITE permission
+    const role = await getUserRepoRole(req.userId!, req.params.id);
+    if (!role) return res.status(404).json({ error: 'Repo not found' });
+    if (role === 'VIEWER') return res.status(403).json({ error: 'Write access required' });
+    
     const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
-    if (!repo || String(repo.userId) !== String(req.userId)) return res.status(404).json({ error: 'Repo not found' });
+    if (!repo) return res.status(404).json({ error: 'Repo not found' });
 
     // Safety: limit file size to 200KB
     const maxSize = Number(process.env.COMMIT_MAX_BYTES || 200 * 1024);
@@ -272,8 +303,13 @@ router.post('/:id/revert', async (req: AuthRequest, res: Response) => {
     const { path, sha, branch, dryRun } = req.body as { path?: string; sha?: string; branch?: string; dryRun?: boolean };
     if (!path || !sha) return res.status(400).json({ error: 'path and sha are required in body' });
 
+    // Check WRITE permission
+    const role = await getUserRepoRole(req.userId!, req.params.id);
+    if (!role) return res.status(404).json({ error: 'Repo not found' });
+    if (role === 'VIEWER') return res.status(403).json({ error: 'Write access required' });
+    
     const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
-    if (!repo || String(repo.userId) !== String(req.userId)) return res.status(404).json({ error: 'Repo not found' });
+    if (!repo) return res.status(404).json({ error: 'Repo not found' });
 
     // Fetch file content at the specified commit sha
     let oldContent: string;
@@ -318,8 +354,11 @@ router.post('/:id/revert', async (req: AuthRequest, res: Response) => {
 // POST /:id/refresh-cache -> force invalidate cached trees/files/readme for a repo
 router.post('/:id/refresh-cache', async (req: AuthRequest, res: Response) => {
   try {
+    const role = await getUserRepoRole(req.userId!, req.params.id);
+    if (!role) return res.status(404).json({ error: 'Repo not found' });
+    
     const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
-    if (!repo || String(repo.userId) !== String(req.userId)) return res.status(404).json({ error: 'Repo not found' });
+    if (!repo) return res.status(404).json({ error: 'Repo not found' });
     try {
       const parsed = parseGitHubUrl(repo.gitUrl);
       cacheDelPrefix(`tree:${parsed.owner}/${parsed.repo}:`);
@@ -341,8 +380,13 @@ router.post('/:id/jobs', async (req: AuthRequest, res: Response) => {
     const { command, branch, meta } = req.body as { command?: string; branch?: string; meta?: any };
     if (!command) return res.status(400).json({ error: 'command is required' });
 
+    // Check WRITE permission
+    const role = await getUserRepoRole(req.userId!, req.params.id);
+    if (!role) return res.status(404).json({ error: 'Repo not found' });
+    if (role === 'VIEWER') return res.status(403).json({ error: 'Write access required' });
+    
     const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
-    if (!repo || String(repo.userId) !== String(req.userId)) return res.status(404).json({ error: 'Repo not found' });
+    if (!repo) return res.status(404).json({ error: 'Repo not found' });
 
     // Create DB job record
     const job = await prisma.job.create({
@@ -369,8 +413,11 @@ router.post('/:id/jobs', async (req: AuthRequest, res: Response) => {
 // GET /:id/jobs -> list jobs for this repo
 router.get('/:id/jobs', async (req: AuthRequest, res: Response) => {
   try {
+    const role = await getUserRepoRole(req.userId!, req.params.id);
+    if (!role) return res.status(404).json({ error: 'Repo not found' });
+    
     const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
-    if (!repo || String(repo.userId) !== String(req.userId)) return res.status(404).json({ error: 'Repo not found' });
+    if (!repo) return res.status(404).json({ error: 'Repo not found' });
 
     const jobs = await prisma.job.findMany({
       where: { repoId: repo.id },
@@ -387,8 +434,13 @@ router.get('/:id/jobs', async (req: AuthRequest, res: Response) => {
 
 router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
+    // Only owner can delete
+    const role = await getUserRepoRole(req.userId!, req.params.id);
+    if (!role) return res.status(404).json({ error: 'Repo not found' });
+    if (role !== 'OWNER') return res.status(403).json({ error: 'Only the owner can delete this repository' });
+    
     const repo = await prisma.repo.findUnique({ where: { id: req.params.id } });
-    if (!repo || String(repo.userId) !== String(req.userId)) return res.status(404).json({ error: 'Repo not found' });
+    if (!repo) return res.status(404).json({ error: 'Repo not found' });
     
     await prisma.repo.delete({ where: { id: repo.id } });
     try {

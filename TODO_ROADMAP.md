@@ -69,7 +69,7 @@ This file tracks the 8-week roadmap as discrete daily tasks and the current stat
 
 ## Week 7 — Tests, E2E, docs, robustness
 
-- Day 31 (Mon) — RBAC basics: owner vs collaborator roles. ⬜
+- Day 31 (Mon) — RBAC basics: owner vs collaborator roles. ✅
 - Day 32 (Tue) — Unit tests: Jest for core backend logic. ⬜
 - Day 33 (Wed) — Integration tests: enqueue -> worker run (mock Docker). ⬜
 - Day 34 (Thu) — E2E tests: Playwright for critical flows. ⬜
@@ -87,9 +87,17 @@ This file tracks the 8-week roadmap as discrete daily tasks and the current stat
 
 ## Notes & Next Actions
 
-- Current focus: Week 7 - RBAC, Tests, E2E.
-- Completed: Days 1-30 (UI Polish with responsive layout, shared components).
+- Current focus: Week 7 Day 32 - Unit tests (Jest for core backend logic).
+- Completed: Days 1-31 (RBAC with owner/collaborator roles, RepoCollaborator model, role-based API access control).
+
+### Day 31 RBAC Summary:
+- Created `RepoCollaborator` model with roles: OWNER, ADMIN, WRITE, VIEWER
+- Implemented RBAC helper functions in `api/src/lib/rbac.ts`
+- Added RBAC middleware in `api/src/middleware/rbac.ts`
+- Created collaborator management routes: GET/POST/PATCH/DELETE collaborators
+- Updated all repo routes to use role-based access control
+- Ownership transfer endpoint added
 
 ---
 
-_Last updated: 2025-12-01_
+_Last updated: 2025-12-02_

@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
 import { getRepos, getFiles } from '../lib/api'
+import { RoleBadge } from './CollaboratorsPanel'
+
+type RepoRole = 'OWNER' | 'ADMIN' | 'WRITE' | 'VIEWER'
 
 interface ExplorerItem {
   type: 'repo' | 'folder' | 'file'
@@ -9,6 +12,8 @@ interface ExplorerItem {
   repo?: any
   children?: ExplorerItem[]
   expanded?: boolean
+  role?: RepoRole
+  isOwner?: boolean
 }
 
 export default function UnifiedExplorer({ onRepoSelect, onFileSelect }: {
@@ -40,7 +45,9 @@ export default function UnifiedExplorer({ onRepoSelect, onFileSelect }: {
           repoId: repo.id,
           repo,
           children: [],
-          expanded: false
+          expanded: false,
+          role: repo.role as RepoRole,
+          isOwner: repo.isOwner
         }))
         setItems(repoItems)
       })
@@ -179,6 +186,11 @@ export default function UnifiedExplorer({ onRepoSelect, onFileSelect }: {
           <span className="flex-1 truncate">
             {item.name}
           </span>
+          
+          {/* Role badge for shared repos */}
+          {item.type === 'repo' && item.role && item.isOwner === false && (
+            <RoleBadge role={item.role} size="sm" />
+          )}
 
           {/* Chevron for expandable items */}
           {(item.type === 'repo' || item.type === 'folder') && (

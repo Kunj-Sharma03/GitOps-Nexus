@@ -88,4 +88,35 @@ export async function deleteSession(sessionId: string) {
   return apiFetch(`/sessions/${sessionId}`, { method: 'DELETE' })
 }
 
+// ============ COLLABORATORS ============
+
+export async function getCollaborators(repoId: string) {
+  return apiFetch(`/repos/${repoId}/collaborators`)
+}
+
+export async function addCollaborator(repoId: string, email: string, role: string) {
+  return apiFetch(`/repos/${repoId}/collaborators`, { 
+    method: 'POST', 
+    body: JSON.stringify({ email, role }) 
+  })
+}
+
+export async function updateCollaboratorRole(repoId: string, userId: string, role: string) {
+  return apiFetch(`/repos/${repoId}/collaborators/${userId}`, { 
+    method: 'PATCH', 
+    body: JSON.stringify({ role }) 
+  })
+}
+
+export async function removeCollaborator(repoId: string, userId: string) {
+  return apiFetch(`/repos/${repoId}/collaborators/${userId}`, { method: 'DELETE' })
+}
+
+export async function transferOwnership(repoId: string, newOwnerId: string) {
+  return apiFetch(`/repos/${repoId}/transfer`, { 
+    method: 'POST', 
+    body: JSON.stringify({ newOwnerId }) 
+  })
+}
+
 export default apiFetch

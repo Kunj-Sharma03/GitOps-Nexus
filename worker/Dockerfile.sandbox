@@ -1,0 +1,17 @@
+FROM node:18-alpine
+
+# Install useful tools as root before switching user
+RUN apk add --no-cache \
+    nano \
+    vim \
+    git \
+    curl \
+    bash \
+    jq
+
+# Switch to non-root user for security
+USER node
+
+WORKDIR /app
+
+CMD ["tail", "-f", "/dev/null"]

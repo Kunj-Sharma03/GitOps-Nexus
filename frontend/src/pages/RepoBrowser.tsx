@@ -2,12 +2,15 @@ import { useState, useEffect } from 'react'
 import UnifiedExplorer from '../components/UnifiedExplorer'
 import BranchSelector from '../components/BranchSelector'
 import FileViewer from '../components/FileViewer'
+import CollaboratorsPanel, { RoleBadge } from '../components/CollaboratorsPanel'
 import { getFileContent, createRepo, getRepos } from '../lib/api'
 import { buildGitHubUrl, buildPermalink } from '../lib/utils'
 import { Button, GlassCard, EmptyState } from '../components/ui'
 import { useAppContext } from '../lib/AppContext'
 
 import { useNavigate } from 'react-router-dom'
+
+type RepoRole = 'OWNER' | 'ADMIN' | 'WRITE' | 'VIEWER'
 
 export default function RepoBrowser() {
   const { selectedRepo, selectedBranch, selectedPath, setSelectedRepo, setSelectedBranch, setSelectedPath } = useAppContext()
@@ -19,8 +22,16 @@ export default function RepoBrowser() {
   const [isAddingRepo, setIsAddingRepo] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const [repoCount, setRepoCount] = useState(0)
+  
+  // Collaborators Panel
+  const [isCollabOpen, setIsCollabOpen] = useState(false)
 
   const navigate = useNavigate()
+  
+  // Get the current user's role for the selected repo
+  const userRole: RepoRole = selectedRepo?.role || (selectedRepo?.isOwner !== false ? 'OWNER' : 'VIEWER')
+  const canWrite = userRole === 'OWNER' || userRole === 'ADMIN' || userRole === 'WRITE'
+  const canManageCollaborators = userRole === 'OWNER' || userRole === 'ADMIN'
 
   useEffect(() => {
     getRepos().then((data: any) => {
@@ -102,11 +113,25 @@ export default function RepoBrowser() {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex items-center gap-2 text-sm overflow-hidden">
                     <span className="text-green-400 font-bold truncate">{selectedRepo.name}</span>
+                    {userRole !== 'OWNER' && <RoleBadge role={userRole} size="sm" />}
                     <span className="text-white/30">/</span>
                     <span className="text-white/60 truncate">{selectedPath || 'root'}</span>
                   </div>
-                  <div className="w-full sm:w-48">
-                    <BranchSelector repoId={selectedRepo.id} value={selectedBranch} onChange={setSelectedBranch} showLabel={false} />
+                  <div className="flex items-center gap-2">
+                    {canManageCollaborators && (
+                      <button
+                        onClick={() => setIsCollabOpen(true)}
+                        className="p-2 rounded text-white/40 hover:text-white hover:bg-white/5 transition-colors"
+                        title="Manage Collaborators"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                        </svg>
+                      </button>
+                    )}
+                    <div className="w-full sm:w-48">
+                      <BranchSelector repoId={selectedRepo.id} value={selectedBranch} onChange={setSelectedBranch} showLabel={false} />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -122,16 +147,20 @@ export default function RepoBrowser() {
                     ⚡ CI / Jobs
                   </Button>
                   <Button
-                    disabled={!selectedPath}
+                    disabled={!selectedPath || !canWrite}
                     onClick={() => {
                       if (!selectedRepo || !selectedPath) return
                       navigate(`/editor`)
                     }}
                     variant="primary"
                     size="sm"
+                    title={!canWrite ? 'You need Write access to edit files' : undefined}
                   >
                     ✎ Edit File
                   </Button>
+                  {!canWrite && selectedPath && (
+                    <span className="text-[10px] text-white/40 italic">Read-only access</span>
+                  )}
                   <div className="flex-1" />
                   <button
                     disabled={!selectedRepo}
@@ -211,6 +240,16 @@ export default function RepoBrowser() {
             </form>
           </GlassCard>
         </div>
+      )}
+
+      {/* Collaborators Panel */}
+      {selectedRepo && (
+        <CollaboratorsPanel
+          repoId={selectedRepo.id}
+          userRole={userRole}
+          isOpen={isCollabOpen}
+          onClose={() => setIsCollabOpen(false)}
+        />
       )}
     </div>
   )

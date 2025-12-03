@@ -5,9 +5,10 @@ import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { Octokit } from '@octokit/rest';
 import crypto from 'crypto';
 
-const GITHUB_OAUTH_CLIENT_ID = process.env.GITHUB_CLIENT_ID;
-const GITHUB_OAUTH_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
-const OAUTH_REDIRECT_URI = process.env.GITHUB_OAUTH_REDIRECT || 'http://localhost:3000/api/auth/github/callback';
+// Read env vars at runtime via getters to ensure they're available after dotenv.config()
+const getGithubClientId = () => process.env.GITHUB_CLIENT_ID;
+const getGithubClientSecret = () => process.env.GITHUB_CLIENT_SECRET;
+const getOAuthRedirectUri = () => process.env.GITHUB_OAUTH_REDIRECT || 'http://localhost:3000/api/auth/github/callback';
 
 const router = Router();
 
@@ -86,12 +87,14 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
 
 // Start GitHub OAuth flow
 router.get('/github', (req: Request, res: Response) => {
-  if (!GITHUB_OAUTH_CLIENT_ID) return res.status(500).json({ error: 'OAuth not configured' });
+  const clientId = getGithubClientId();
+  const redirectUri = getOAuthRedirectUri();
+  if (!clientId) return res.status(500).json({ error: 'OAuth not configured' });
   const state = crypto.randomBytes(8).toString('hex');
   // Request repo scope so the app can create commits on behalf of the user when needed.
   // For public-repo-only use cases consider 'public_repo' instead of 'repo'.
   const scope = encodeURIComponent('user:email repo');
-  const url = `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(GITHUB_OAUTH_CLIENT_ID)}&scope=${scope}&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}&state=${state}`;
+  const url = `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(clientId)}&scope=${scope}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
   // NOTE: in production you'd store state in user session to verify on callback
   res.redirect(url);
 });
@@ -100,7 +103,10 @@ router.get('/github', (req: Request, res: Response) => {
 router.get('/github/callback', async (req: Request, res: Response) => {
   try {
     const { code } = req.query;
-    if (!code || !GITHUB_OAUTH_CLIENT_ID || !GITHUB_OAUTH_CLIENT_SECRET) {
+    const clientId = getGithubClientId();
+    const clientSecret = getGithubClientSecret();
+    const redirectUri = getOAuthRedirectUri();
+    if (!code || !clientId || !clientSecret) {
       return res.status(400).json({ error: 'Missing code or OAuth not configured' });
     }
 
@@ -108,7 +114,7 @@ router.get('/github/callback', async (req: Request, res: Response) => {
     const tokenResp = await fetch('https://github.com/login/oauth/access_token', {
       method: 'POST',
       headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ client_id: GITHUB_OAUTH_CLIENT_ID, client_secret: GITHUB_OAUTH_CLIENT_SECRET, code, redirect_uri: OAUTH_REDIRECT_URI })
+      body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, code, redirect_uri: redirectUri })
     });
     const tokenJson = await tokenResp.json();
     const accessToken = tokenJson.access_token;

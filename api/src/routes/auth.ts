@@ -5,8 +5,8 @@ import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { Octokit } from '@octokit/rest';
 import crypto from 'crypto';
 
-const GITHUB_OAUTH_CLIENT_ID = process.env.GITHUB_OAUTH_CLIENT_ID;
-const GITHUB_OAUTH_CLIENT_SECRET = process.env.GITHUB_OAUTH_CLIENT_SECRET;
+const GITHUB_OAUTH_CLIENT_ID = process.env.GITHUB_CLIENT_ID;
+const GITHUB_OAUTH_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
 const OAUTH_REDIRECT_URI = process.env.GITHUB_OAUTH_REDIRECT || 'http://localhost:3000/api/auth/github/callback';
 
 const router = Router();

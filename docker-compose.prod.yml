@@ -4,7 +4,7 @@
 # 
 # Usage:
 #   1. Copy .env.production.example to .env
-#   2. Fill in all required values
+#   2. Fill in all required values (DATABASE_URL from Supabase)
 #   3. Build: docker-compose -f docker-compose.prod.yml build
 #   4. Start: docker-compose -f docker-compose.prod.yml up -d
 #   5. Run migrations: docker-compose -f docker-compose.prod.yml exec api npx prisma migrate deploy
@@ -14,27 +14,6 @@
 version: '3.8'
 
 services:
-  # ===========================================
-  # PostgreSQL Database
-  # ===========================================
-  postgres:
-    image: postgres:15-alpine
-    container_name: gitops-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-gitops}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      POSTGRES_DB: ${POSTGRES_DB:-gitops}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gitops} -d ${POSTGRES_DB:-gitops}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - gitops-network
-
   # ===========================================
   # Redis (Job Queue + Pub/Sub)
   # ===========================================
@@ -63,14 +42,12 @@ services:
     container_name: gitops-api
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: postgresql://${POSTGRES_USER:-gitops}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-gitops}?schema=public
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:?GITHUB_CLIENT_ID is required}
@@ -99,13 +76,11 @@ services:
     container_name: gitops-worker
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-gitops}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-gitops}?schema=public
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       REDIS_URL: redis://redis:6379
       # Optional: SMTP for notifications
       SMTP_HOST: ${SMTP_HOST:-}
@@ -156,7 +131,6 @@ services:
 # Volumes
 # ===========================================
 volumes:
-  postgres_data:
   redis_data:
   repo_data:
   worker_workspaces:

@@ -53,6 +53,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:?GITHUB_CLIENT_ID is required}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:?GITHUB_CLIENT_SECRET is required}
+      GITHUB_OAUTH_REDIRECT: ${GITHUB_OAUTH_REDIRECT:-}
       FRONTEND_URL: ${FRONTEND_URL:?FRONTEND_URL is required}
       # Optional: SMTP for notifications
       SMTP_HOST: ${SMTP_HOST:-}

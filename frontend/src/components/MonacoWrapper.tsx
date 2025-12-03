@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import Editor from '@monaco-editor/react'
-import type { OnMount, BeforeMount } from '@monaco-editor/react'
+import type { OnMount } from '@monaco-editor/react'
 
 export default function MonacoWrapper({
   value,
@@ -19,7 +19,7 @@ export default function MonacoWrapper({
 }) {
   const editorRef = useRef<any>(null)
 
-  const handleBeforeMount: BeforeMount = (monaco) => {
+  const handleBeforeMount = (monaco: any) => {
     monaco.editor.defineTheme('dystopia', {
       base: 'vs-dark',
       inherit: true,

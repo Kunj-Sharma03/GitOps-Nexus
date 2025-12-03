@@ -96,6 +96,25 @@ app.get('/health', (_req: Request, res: Response) => {
   });
 });
 
+// Also mount at /api/health for Docker healthcheck
+app.get('/api/health', async (_req: Request, res: Response) => {
+  try {
+    // Check database connection
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      database: 'connected'
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      database: 'disconnected'
+    });
+  }
+});
+
 /**
  * API Info
  */

@@ -6,7 +6,7 @@ import { getFileContent, postCommit, getCommits, postRevert } from '../lib/api'
 import { buildGitHubUrl, buildPermalink } from '../lib/utils'
 import { Button, EmptyState, ConfirmModal, Toast } from '../components/ui'
 import { useAppContext } from '../lib/AppContext'
-
+ 
 export default function Editor() {
   const navigate = useNavigate()
   const { selectedRepo, selectedBranch, selectedPath, setSelectedBranch } = useAppContext()

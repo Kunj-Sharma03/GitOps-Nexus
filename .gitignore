@@ -4,8 +4,16 @@ build/
 *.log
 .env
 .env.local
+.env.production
 data/
 *.db
 .DS_Store
 gitops_spare/
 TODO_ROADMAP.md
+
+# Worker workspaces
+worker/workspaces/
+worker/logs/
+
+# API repos
+api/repos/

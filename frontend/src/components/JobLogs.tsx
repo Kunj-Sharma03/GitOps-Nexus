@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
-import api from '../lib/api';
+import api, { SOCKET_URL } from '../lib/api';
 
 interface JobLogsProps {
   jobId: string;
@@ -37,7 +37,7 @@ export function JobLogs({ jobId, initialLogs = [], onStatusChange }: JobLogsProp
     fetchExistingLogs();
     
     // Connect to API for real-time logs
-    const socket = io('http://localhost:3000');
+    const socket = io(SOCKET_URL);
     socketRef.current = socket;
 
     socket.on('connect', () => {

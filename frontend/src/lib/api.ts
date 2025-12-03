@@ -1,5 +1,8 @@
 export const API_BASE = (window as any).__API_URL__ || import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 
+// Socket.IO URL - strip /api from API_BASE to get the base server URL
+export const SOCKET_URL = API_BASE.replace(/\/api\/?$/, '')
+
 function jwtHeader(): Record<string, string> {
   const token = localStorage.getItem('jwt') || ''
   return token ? { Authorization: `Bearer ${token}` } : {}

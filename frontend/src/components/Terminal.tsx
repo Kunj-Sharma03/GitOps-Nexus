@@ -3,6 +3,7 @@ import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { io, Socket } from 'socket.io-client';
+import { SOCKET_URL } from '../lib/api';
 import '@xterm/xterm/css/xterm.css';
 
 // Custom styles to ensure left alignment and full width
@@ -91,7 +92,7 @@ export function Terminal({ sessionId, onClose }: TerminalProps) {
 
     // Connect to WebSocket
     const token = localStorage.getItem('jwt');
-    const socket = io('http://localhost:3000/terminal', {
+    const socket = io(`${SOCKET_URL}/terminal`, {
       auth: { token },
     });
     socketRef.current = socket;

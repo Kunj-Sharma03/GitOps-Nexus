@@ -1,8 +1,8 @@
 # Worker Dockerfile
 FROM node:20-alpine
 
-# Install Docker CLI for container management
-RUN apk add --no-cache docker-cli
+# Install Docker CLI and git for container management and cloning repos
+RUN apk add --no-cache docker-cli git
 
 WORKDIR /app
 

@@ -65,6 +65,7 @@ services:
       - "3000:3000"
     volumes:
       - repo_data:/app/repos
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - gitops-network
 

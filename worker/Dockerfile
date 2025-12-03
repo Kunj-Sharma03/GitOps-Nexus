@@ -12,7 +12,7 @@ RUN npm ci --only=production
 
 # Copy prisma schema and generate client
 COPY prisma ./prisma
-RUN npx prisma generate
+RUN ./node_modules/.bin/prisma generate
 
 # Copy built files
 COPY dist ./dist

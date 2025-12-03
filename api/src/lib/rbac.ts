@@ -115,12 +115,12 @@ export async function getUserAccessibleRepos(userId: string) {
   
   // Combine and add role info
   const repos = [
-    ...ownedRepos.map(repo => ({
+    ...ownedRepos.map((repo: typeof ownedRepos[number]) => ({
       ...repo,
       role: 'OWNER' as RepoRole,
       isOwner: true
     })),
-    ...collaborations.map(collab => ({
+    ...collaborations.map((collab: typeof collaborations[number]) => ({
       ...collab.repo,
       role: collab.role as RepoRole,
       isOwner: false
@@ -246,7 +246,7 @@ export async function getRepoCollaborators(repoId: string) {
   
   return {
     owner: repo?.user,
-    collaborators: collaborators.map(c => ({
+    collaborators: collaborators.map((c: typeof collaborators[number]) => ({
       ...c.user,
       role: c.role,
       addedAt: c.createdAt

@@ -5,6 +5,7 @@
  */
 
 import { Router } from 'express'
+import { Prisma } from '@prisma/client'
 import prisma from '../lib/prisma'
 import { authMiddleware } from '../middleware/auth'
 import { requireAdmin, requireOwner } from '../middleware/rbac'
@@ -210,7 +211,7 @@ router.post('/:id/transfer', authMiddleware, requireOwner, async (req, res) => {
     }
     
     // Transaction: transfer ownership
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Update repo owner
       await tx.repo.update({
         where: { id: repoId },

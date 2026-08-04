@@ -51,6 +51,10 @@ npx prisma generate
 npm run build
 cd ..
 
+# Build sandbox image used by interactive sessions
+echo "🔨 Building Sandbox Image..."
+docker build -f worker/Dockerfile.sandbox -t gitops-sandbox:latest worker
+
 # Update nginx config with domain
 echo "🔧 Configuring Nginx..."
 sed -i "s/YOUR_DOMAIN/${DOMAIN}/g" nginx/conf.d/api.conf

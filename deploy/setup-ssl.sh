@@ -28,7 +28,7 @@ echo "=========================================="
 
 # First, get certificate using HTTP challenge
 echo "📜 Requesting SSL certificate..."
-docker compose -f docker-compose.prod.yml run --rm certbot certonly \
+docker compose -f docker-compose.prod.yml run --rm --entrypoint certbot certbot certonly \
     --webroot \
     --webroot-path=/var/www/certbot \
     --email "$EMAIL" \

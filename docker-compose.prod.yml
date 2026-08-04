@@ -125,8 +125,8 @@ services:
     image: certbot/certbot
     container_name: gitops-certbot
     volumes:
-      - certbot_www:/var/www/certbot
-      - certbot_conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
     # Run once to get certificate, then set up cron for renewal
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
 
@@ -138,9 +138,10 @@ volumes:
   repo_data:
   worker_workspaces:
   worker_logs:
-  certbot_www:
-  certbot_conf:
 
+# ===========================================
+# Volumes
+# ===========================================
 # ===========================================
 # Networks
 # ===========================================

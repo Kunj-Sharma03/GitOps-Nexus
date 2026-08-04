@@ -11,8 +11,6 @@
 #
 # ===========================================
 
-version: '3.8'
-
 services:
   # ===========================================
   # Redis (Job Queue + Pub/Sub)
@@ -37,8 +35,8 @@ services:
   # ===========================================
   api:
     build:
-      context: ./api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api/Dockerfile
     container_name: gitops-api
     restart: unless-stopped
     depends_on:
@@ -74,8 +72,8 @@ services:
   # ===========================================
   worker:
     build:
-      context: ./worker
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: worker/Dockerfile
     container_name: gitops-worker
     restart: unless-stopped
     depends_on:

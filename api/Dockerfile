@@ -7,16 +7,16 @@ RUN apk add --no-cache docker-cli
 WORKDIR /app
 
 # Install ALL dependencies (including devDependencies for build)
-COPY package*.json ./
+COPY api/package*.json ./
 RUN npm ci
 
 # Copy prisma schema and generate client
-COPY prisma ./prisma
-RUN ./node_modules/.bin/prisma generate
+COPY api/prisma ./prisma
+RUN ./node_modules/.bin/prisma generate --schema=./prisma/schema.prisma
 
 # Copy source files and build
-COPY tsconfig.json ./
-COPY src ./src
+COPY api/tsconfig.json ./
+COPY api/src ./src
 RUN npm run build
 
 # Remove devDependencies after build

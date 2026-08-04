@@ -37,7 +37,7 @@
 | Environment | URL |
 |-------------|-----|
 | **Frontend** | [git-ops-nexus-458p.vercel.app](https://git-ops-nexus-458p.vercel.app) |
-| **API** | [api.webby.codes](https://api.webby.codes/api/health) |
+| **API** | [kunjdevaws.duckdns.org](https://kunjdevaws.duckdns.org/api/health) |
 
 ---
 
@@ -162,7 +162,7 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │                    NGINX REVERSE PROXY                           │
 │                 SSL Termination (Let's Encrypt)                  │
-│                    api.webby.codes:443                           │
+│                 kunjdevaws.duckdns.org:443                       │
 └──────────────────────────────┬──────────────────────────────────┘
                                │
         ┌──────────────────────┼──────────────────────┐

@@ -1,0 +1,35 @@
+# ==============================================================================
+# GitOps Nexus - Terraform Variables Example
+# ==============================================================================
+# Copy this file to 'terraform.tfvars' and fill in your details:
+#   cp terraform.tfvars.example terraform.tfvars
+# ==============================================================================
+
+# AWS Region where you want to deploy
+aws_region = "us-east-1"
+
+# Environment name
+environment = "prod"
+
+# Name of your existing EC2 Key Pair (found in AWS Console -> EC2 -> Key Pairs)
+# REQUIRED: Replace with your actual key pair name
+key_name = "gitops-nexus-key"
+
+# Path to your private key file on your local machine (for easy SSH output)
+ssh_private_key_path = "~/.ssh/gitops-nexus-key.pem"
+
+# Instance Type: 't3.small' (2 vCPU, 2 GB RAM) is recommended
+instance_type = "t3.small"
+
+# Root volume size in GB (EBS gp3 SSD)
+root_volume_size = 25
+
+# Automated swapfile size in GB (2 GB doubles virtual memory to 4 GB safely)
+swap_size_gb = 2
+
+# IP addresses allowed to connect via SSH
+# Default allows any IP. For maximum security, restrict to your public IP: ["YOUR_IP/32"]
+allowed_ssh_cidrs = ["0.0.0.0/0"]
+
+# Whether to allocate a fixed Elastic IP
+allocate_elastic_ip = true

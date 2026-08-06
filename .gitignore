@@ -10,6 +10,7 @@ data/
 .DS_Store
 gitops_spare/
 TODO_ROADMAP.md
+.agents
 
 # Worker workspaces
 worker/workspaces/

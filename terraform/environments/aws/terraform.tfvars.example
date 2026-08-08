@@ -5,8 +5,8 @@
 #   cp terraform.tfvars.example terraform.tfvars
 # ==============================================================================
 
-# AWS Region where you want to deploy
-aws_region = "us-east-1"
+# AWS Region where you want to deploy (ap-south-1 Mumbai)
+aws_region = "ap-south-1"
 
 # Environment name
 environment = "prod"

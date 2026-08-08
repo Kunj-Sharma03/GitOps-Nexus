@@ -6,7 +6,7 @@ This directory contains the production-grade Terraform configuration to automati
 
 ## 🏗️ Architecture Overview
 
-The Terraform setup provisions an **Anchor Host** on AWS EC2 designed to run the full GitOps Nexus production Docker stack safely within budget:
+The Terraform setup provisions an **Anchor Host** on AWS EC2 designed to run the full GitOps Nexus production Docker stack safely:
 
 ```
                       +---------------------------------------------------------+
@@ -69,9 +69,9 @@ terraform/
 2. **AWS CLI**: Install and configure your AWS credentials:
    ```bash
    aws configure
-   # Enter AWS Access Key ID, Secret Access Key, and Default Region (e.g., us-east-1)
+   # Enter AWS Access Key ID, Secret Access Key, and Default Region (e.g., ap-south-1)
    ```
-3. **AWS Key Pair**: Ensure you have an EC2 Key Pair created in your AWS Console (`EC2 -> Key Pairs`) and saved to your local machine (e.g., `~/.ssh/gitops-key.pem`).
+3. **AWS Key Pair**: Ensure you have an EC2 Key Pair created in your AWS Console (`EC2 -> Key Pairs` in `ap-south-1`) and saved to your local machine (e.g., `~/.ssh/gitops-key.pem`).
 
 ---
 
@@ -89,7 +89,7 @@ cp terraform.tfvars.example terraform.tfvars
 ```
 Open `terraform.tfvars` in your editor and update your details:
 ```hcl
-aws_region           = "us-east-1"
+aws_region           = "ap-south-1"
 key_name             = "your-ec2-key-name"
 ssh_private_key_path = "~/.ssh/your-ec2-key-name.pem"
 instance_type        = "t3.small"

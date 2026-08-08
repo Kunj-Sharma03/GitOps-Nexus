@@ -3,9 +3,9 @@
 # ==============================================================================
 
 variable "aws_region" {
-  description = "AWS region to deploy the infrastructure into (e.g. us-east-1, us-east-2, ap-south-1)"
+  description = "AWS region to deploy the infrastructure into (e.g. ap-south-1, us-east-1, us-east-2)"
   type        = string
-  default     = "us-east-1"
+  default     = "ap-south-1"
 }
 
 variable "environment" {

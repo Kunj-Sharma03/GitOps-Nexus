@@ -12,6 +12,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@kubernetes/client-node": "^1.4.0",
     "@octokit/rest": "^22.0.1",
     "@prisma/client": "6.19.0",
     "bcrypt": "^6.0.0",

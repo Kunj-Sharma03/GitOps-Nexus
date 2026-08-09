@@ -1,0 +1,49 @@
+# ==============================================================================
+# GitOps Nexus - Dedicated Sandboxes Namespace & Resource Controls
+# ==============================================================================
+# All ephemeral developer terminal pods & CI jobs execute inside this namespace.
+# ==============================================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gitops-sandboxes
+  labels:
+    app.kubernetes.io/part-of: gitops-nexus
+    environment: sandbox
+---
+# Hard limits on the total resources all sandboxes combined can consume
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: sandbox-quota
+  namespace: gitops-sandboxes
+spec:
+  hard:
+    pods: "20"
+    requests.cpu: "4"
+    requests.memory: "4Gi"
+    limits.cpu: "8"
+    limits.memory: "8Gi"
+---
+# Default and maximum limits per individual sandbox Pod
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: sandbox-limit-range
+  namespace: gitops-sandboxes
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: "500m"
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "100m"
+        memory: "128Mi"
+      max:
+        cpu: "2"
+        memory: "2Gi"
+      min:
+        cpu: "50m"
+        memory: "64Mi"

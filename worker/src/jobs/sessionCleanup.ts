@@ -1,9 +1,12 @@
 import Docker from 'dockerode';
 import { withPrisma } from '../prisma';
+import { k8sProvider } from '../services/k8sProvider';
 
 const docker = new Docker();
 
 export default async function sessionCleanup() {
+  const runtime = (process.env.SANDBOX_RUNTIME || 'docker').toLowerCase();
+
   return withPrisma(async (prisma) => {
     const now = new Date();
     
@@ -19,8 +22,38 @@ export default async function sessionCleanup() {
       return; // Nothing to clean up
     }
 
-    console.log(`Found ${expiredSessions.length} expired sessions. Cleaning up...`);
+    console.log(`Found ${expiredSessions.length} expired sessions. Cleaning up (runtime: ${runtime})...`);
 
+    // =========================================================================
+    // KUBERNETES RUNTIME CLEANUP
+    // =========================================================================
+    if (runtime === 'kubernetes') {
+      const activeSessions = await prisma.session.findMany({
+        where: { status: 'RUNNING' },
+        select: { id: true },
+      });
+      const activeSet = new Set(activeSessions.map((s) => s.id));
+
+      for (const session of expiredSessions) {
+        try {
+          await k8sProvider.stopPodSession(session.id);
+          await prisma.session.update({
+            where: { id: session.id },
+            data: { status: 'EXPIRED' },
+          });
+          console.log(`[K8s] Expired session ${session.id} marked as EXPIRED.`);
+        } catch (err: any) {
+          console.error(`[K8s] Failed to clean up session ${session.id}:`, err.message);
+        }
+      }
+
+      await k8sProvider.cleanupExpiredPods(activeSet);
+      return;
+    }
+
+    // =========================================================================
+    // DOCKER RUNTIME CLEANUP (Default / Backward Compatible)
+    // =========================================================================
     for (const session of expiredSessions) {
       try {
         console.log(`Cleaning up expired session ${session.id}...`);

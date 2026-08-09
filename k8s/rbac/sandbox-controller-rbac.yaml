@@ -1,0 +1,50 @@
+# ==============================================================================
+# GitOps Nexus - Sandbox Controller RBAC Manifests
+# ==============================================================================
+# Grants the API & Worker services least-privilege access to manage Pods
+# exclusively within the 'gitops-sandboxes' namespace.
+# ==============================================================================
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gitops-sandbox-controller
+  namespace: gitops-sandboxes
+  labels:
+    app.kubernetes.io/name: gitops-sandbox-controller
+    app.kubernetes.io/part-of: gitops-nexus
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gitops-sandbox-manager
+  namespace: gitops-sandboxes
+rules:
+  # Permissions to manage sandbox lifecycle
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "create", "delete", "patch"]
+
+  # Permissions to stream logs and attach interactive shells
+  - apiGroups: [""]
+    resources: ["pods/log", "pods/exec", "pods/status"]
+    verbs: ["get", "list", "create"]
+
+  # Permissions to monitor events inside the sandbox namespace
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gitops-sandbox-manager-binding
+  namespace: gitops-sandboxes
+subjects:
+  - kind: ServiceAccount
+    name: gitops-sandbox-controller
+    namespace: gitops-sandboxes
+roleRef:
+  kind: Role
+  name: gitops-sandbox-manager
+  apiGroup: rbac.authorization.k8s.io

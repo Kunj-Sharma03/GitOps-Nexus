@@ -1,6 +1,7 @@
 import Docker from 'dockerode';
 import fs from 'fs-extra';
 import path from 'path';
+import { k8sProvider } from '../services/k8sProvider';
 
 const docker = new Docker();
 
@@ -11,10 +12,22 @@ interface SessionStopPayload {
 
 export default async function sessionStop(payload: SessionStopPayload) {
   const { sessionId, containerId } = payload;
+  const runtime = (process.env.SANDBOX_RUNTIME || 'docker').toLowerCase();
   
-  console.log(`Stopping session ${sessionId}...`);
+  console.log(`Stopping session ${sessionId} (runtime: ${runtime})...`);
+
+  // ===========================================================================
+  // KUBERNETES RUNTIME
+  // ===========================================================================
+  if (runtime === 'kubernetes') {
+    await k8sProvider.stopPodSession(sessionId);
+    console.log(`[K8s] Session ${sessionId} Pod stopped and deleted.`);
+    return;
+  }
   
-  // 1. Stop and remove the Docker container
+  // ===========================================================================
+  // DOCKER RUNTIME (Default / Backward Compatible)
+  // ===========================================================================
   if (containerId) {
     try {
       const container = docker.getContainer(containerId);
@@ -57,7 +70,7 @@ export default async function sessionStop(payload: SessionStopPayload) {
     }
   }
   
-  // 2. Clean up workspace directory
+  // Clean up workspace directory
   const workspacePath = path.join(__dirname, '..', '..', 'workspaces', `session-${sessionId}`);
   if (await fs.pathExists(workspacePath)) {
     console.log(`Cleaning up workspace ${workspacePath}...`);

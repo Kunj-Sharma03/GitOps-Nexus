@@ -1,0 +1,19 @@
+# ==============================================================================
+# GitOps Nexus Automated CI/CD Pipeline
+# ==============================================================================
+version: "1.0"
+
+pipeline:
+  name: "build-and-test"
+  environment:
+    NODE_ENV: "test"
+
+  steps:
+    - name: "Install Dependencies"
+      command: "npm ci || npm install"
+
+    - name: "Run Unit Tests"
+      command: "npm test --if-present"
+
+    - name: "Build Artifact"
+      command: "npm run build --if-present"

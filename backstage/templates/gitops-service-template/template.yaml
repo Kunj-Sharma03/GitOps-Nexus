@@ -1,0 +1,105 @@
+# ==============================================================================
+# Backstage Software Template: GitOps Nexus Microservice
+# ==============================================================================
+# Allows developers to scaffold a production-ready microservice with built-in
+# GitOps Nexus CI/CD pipelines, automated testing, and catalog registration.
+# ==============================================================================
+
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: gitops-nexus-node-service
+  title: GitOps Nexus Node.js Microservice
+  description: Scaffolds a production-ready Node.js / Express microservice with automated GitOps Nexus CI/CD and sandbox environments.
+  tags:
+    - nodejs
+    - gitops
+    - express
+    - kubernetes
+    - recommended
+spec:
+  owner: platform-team
+  type: service
+
+  # User Input Form Fields
+  parameters:
+    - title: Service Details
+      required:
+        - component_id
+        - description
+        - owner
+      properties:
+        component_id:
+          title: Service Name
+          type: string
+          description: Unique kebab-case name of the component (e.g. order-service)
+          ui:autofocus: true
+        description:
+          title: Description
+          type: string
+          description: A brief summary of what this microservice does
+        owner:
+          title: Owner
+          type: string
+          description: Team or individual responsible for this service
+          ui:field: OwnerPicker
+          ui:options:
+            allowedKinds:
+              - Group
+              - User
+
+    - title: Infrastructure & GitOps Configuration
+      required:
+        - port
+        - node_version
+      properties:
+        port:
+          title: HTTP Port
+          type: integer
+          default: 3000
+          description: Port that the microservice listens on
+        node_version:
+          title: Node.js Version
+          type: string
+          default: "20"
+          enum:
+            - "18"
+            - "20"
+            - "22"
+        gitops_auto_ci:
+          title: Enable GitOps Nexus Auto-CI
+          type: boolean
+          default: true
+          description: Automatically run test and build pipelines on every git push
+
+  # Execution Steps
+  steps:
+    # 1. Fetch template skeleton and parameterize placeholders
+    - id: fetch-base
+      name: Scaffolding Skeleton
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          component_id: ${{ parameters.component_id }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          port: ${{ parameters.port }}
+          node_version: ${{ parameters.node_version }}
+          gitops_auto_ci: ${{ parameters.gitops_auto_ci }}
+
+    # 2. Register with Backstage Software Catalog
+    - id: register-catalog
+      name: Register Component in Catalog
+      action: catalog:register
+      input:
+        catalogInfoUrl: ${{ steps['fetch-base'].output.entityRef }}
+
+  # Output Links
+  output:
+    links:
+      - title: Open in GitOps Nexus
+        url: http://localhost:3000/repos/${{ parameters.component_id }}
+      - title: Backstage Catalog Entity
+        icon: catalog
+        entityRef: ${{ steps['register-catalog'].output.entityRef }}

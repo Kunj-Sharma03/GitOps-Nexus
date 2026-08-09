@@ -1,0 +1,16 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ${{ values.component_id }}
+  description: ${{ values.description }}
+  annotations:
+    gitops-nexus.io/service-name: ${{ values.component_id }}
+    gitops-nexus.io/auto-ci: "${{ values.gitops_auto_ci }}"
+  tags:
+    - nodejs
+    - microservice
+    - gitops
+spec:
+  type: service
+  lifecycle: production
+  owner: ${{ values.owner }}

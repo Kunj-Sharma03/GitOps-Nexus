@@ -47,6 +47,7 @@ services:
       PORT: 3000
       # API uses Direct/Session Pooler (port 5432) for migrations + queries
       DATABASE_URL: ${API_DATABASE_URL:?API_DATABASE_URL is required}
+      DIRECT_URL: ${API_DATABASE_URL}
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:?GITHUB_CLIENT_ID is required}

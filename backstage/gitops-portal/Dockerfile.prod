@@ -1,0 +1,59 @@
+# Stage 1: Build the Backstage app
+FROM node:18-bookworm-slim AS build
+
+# Enable yarn via corepack
+RUN corepack enable
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies needed for native node modules and sqlite3
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends python3 python-is-python3 make build-essential g++ sqlite3 libsqlite3-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy root package.json and yarn.lock
+COPY package.json yarn.lock ./
+
+# Copy all packages
+COPY packages packages
+
+# Install all dependencies
+RUN yarn install --frozen-lockfile --network-timeout 300000
+
+# Copy the rest of the application
+COPY . .
+
+# Build the Backstage backend and frontend
+RUN yarn tsc
+RUN yarn build:backend
+
+# Stage 2: Create the production image
+FROM node:18-bookworm-slim
+
+# Enable yarn via corepack
+RUN corepack enable
+
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends python3 python-is-python3 make build-essential g++ sqlite3 libsqlite3-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy the built skeleton (for caching yarn install)
+COPY --from=build /app/packages/backend/dist/skeleton.tar.gz ./
+RUN tar xzf skeleton.tar.gz && rm skeleton.tar.gz
+
+# Install production dependencies
+RUN yarn install --production --frozen-lockfile --network-timeout 300000
+
+# Copy the rest of the built code
+COPY --from=build /app/packages/backend/dist/bundle.tar.gz ./
+RUN tar xzf bundle.tar.gz && rm bundle.tar.gz
+
+# Add configuration files
+COPY app-config.yaml app-config.production.yaml ./
+
+# Run the app
+CMD ["node", "packages/backend", "--config", "app-config.yaml", "--config", "app-config.production.yaml"]

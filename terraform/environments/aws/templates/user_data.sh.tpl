@@ -92,12 +92,64 @@ ufw default allow outgoing
 ufw allow 22/tcp comment 'SSH Access'
 ufw allow 80/tcp comment 'HTTP (Certbot & Web)'
 ufw allow 443/tcp comment 'HTTPS (TLS Proxy)'
+# Allow K3s API server from Docker gateway
+ufw allow from 172.17.0.0/16 to any port 6443 comment 'Allow Docker to K3s'
 
 # Enable UFW without prompting
 ufw --force enable
 
 # ------------------------------------------------------------------------------
-# 5. Application Directory Preparation
+# 5. K3s Installation (Lightweight Kubernetes)
+# ------------------------------------------------------------------------------
+echo "☸️ Installing K3s Kubernetes Engine..."
+# Install K3s, disabling traefik and local-storage to save memory
+curl -sfL https://get.k3s.io | sh -s - --disable traefik --disable local-storage
+
+# Wait for K3s to be ready
+sleep 15
+export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+
+# Create the sandbox namespace
+kubectl create namespace gitops-sandboxes || true
+
+# Apply Sandbox Controller RBAC
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gitops-sandbox-controller
+  namespace: gitops-sandboxes
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gitops-sandbox-manager
+  namespace: gitops-sandboxes
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "pods/exec", "pods/status"]
+    verbs: ["get", "list", "watch", "create", "delete", "patch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gitops-sandbox-manager-binding
+  namespace: gitops-sandboxes
+subjects:
+  - kind: ServiceAccount
+    name: gitops-sandbox-controller
+    namespace: gitops-sandboxes
+roleRef:
+  kind: Role
+  name: gitops-sandbox-manager
+  apiGroup: rbac.authorization.k8s.io
+EOF
+
+# ------------------------------------------------------------------------------
+# 6. Application Directory Preparation
 # ------------------------------------------------------------------------------
 APP_DIR="${app_dir}"
 if [ -z "$APP_DIR" ]; then
@@ -110,8 +162,14 @@ if id -u ubuntu &>/dev/null; then
     chown -R ubuntu:ubuntu "$APP_DIR"
 fi
 
+# Prepare kubeconfig for Docker Compose containers
+# Replace 127.0.0.1 with 172.17.0.1 (Docker bridge gateway) so containers can reach K3s
+cp /etc/rancher/k3s/k3s.yaml "$APP_DIR/k3s-docker.yaml"
+sed -i 's/127.0.0.1/172.17.0.1/g' "$APP_DIR/k3s-docker.yaml"
+chmod 644 "$APP_DIR/k3s-docker.yaml"
+
 # ------------------------------------------------------------------------------
-# 6. Completion Flag
+# 7. Completion Flag
 # ------------------------------------------------------------------------------
 echo "=============================================================================="
 echo "🎉 Host Provisioning Complete at $(date -u)"

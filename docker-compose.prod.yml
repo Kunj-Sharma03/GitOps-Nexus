@@ -53,6 +53,8 @@ services:
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:?GITHUB_CLIENT_SECRET is required}
       GITHUB_OAUTH_REDIRECT: ${GITHUB_OAUTH_REDIRECT:-}
       FRONTEND_URL: ${FRONTEND_URL:?FRONTEND_URL is required}
+      SANDBOX_RUNTIME: kubernetes
+      K8S_NAMESPACE: gitops-sandboxes
       # Optional: SMTP for notifications
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
@@ -64,6 +66,9 @@ services:
     volumes:
       - repo_data:/app/repos
       - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/gitops-nexus/k3s-docker.yaml:/root/.kube/config:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - gitops-network
 
@@ -85,6 +90,8 @@ services:
       # Worker uses Transaction Pooler (port 6543 with pgbouncer)
       DATABASE_URL: ${WORKER_DATABASE_URL:?WORKER_DATABASE_URL is required}
       REDIS_URL: redis://redis:6379
+      SANDBOX_RUNTIME: kubernetes
+      K8S_NAMESPACE: gitops-sandboxes
       # Optional: SMTP for notifications
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
@@ -95,6 +102,9 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - worker_workspaces:/app/workspaces
       - worker_logs:/app/logs
+      - /opt/gitops-nexus/k3s-docker.yaml:/root/.kube/config:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - gitops-network
 
@@ -130,6 +140,26 @@ services:
     # Run once to get certificate, then set up cron for renewal
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
 
+  # ===========================================
+  # Backstage Developer Portal
+  # ===========================================
+  backstage:
+    # We use a pre-built image from Docker Hub to avoid OOM crashes on small servers
+    image: deecodeew/gitops-backstage:latest
+    container_name: gitops-backstage
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # Backstage will connect to its own SQLite DB or the shared Postgres DB
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Kkrazy.2345}
+      POSTGRES_HOST: ${POSTGRES_HOST:-aws-1-ap-northeast-2.pooler.supabase.com}
+      POSTGRES_PORT: 5432
+    ports:
+      - "7007:7007"
+    networks:
+      - gitops-network
+
 # ===========================================
 # Volumes
 # ===========================================
@@ -138,11 +168,6 @@ volumes:
   repo_data:
   worker_workspaces:
   worker_logs:
-
-# ===========================================
-# Volumes
-# ===========================================
-# ===========================================
 # Networks
 # ===========================================
 networks:

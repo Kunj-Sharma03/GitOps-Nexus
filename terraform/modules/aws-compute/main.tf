@@ -84,7 +84,7 @@ resource "aws_security_group" "gitops_sg" {
 
   # HTTP (Port 80) - Required for web traffic & Let's Encrypt / Certbot challenge
   ingress {
-    description = "HTTP traffic & Let's Encrypt validation"
+    description = "HTTP traffic and Lets Encrypt validation"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"

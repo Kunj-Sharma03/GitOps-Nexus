@@ -150,7 +150,7 @@ services:
     container_name: gitops-backstage
     restart: unless-stopped
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       # Backstage will connect to its own SQLite DB or the shared Postgres DB
       POSTGRES_USER: ${POSTGRES_USER:-postgres.phwwgquqfhqekhnkhmoe}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Kkrazy.2345}

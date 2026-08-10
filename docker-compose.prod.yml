@@ -152,7 +152,7 @@ services:
     environment:
       NODE_ENV: production
       # Backstage will connect to its own SQLite DB or the shared Postgres DB
-      POSTGRES_USER: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-postgres.phwwgquqfhqekhnkhmoe}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Kkrazy.2345}
       POSTGRES_HOST: ${POSTGRES_HOST:-aws-1-ap-northeast-2.pooler.supabase.com}
       POSTGRES_PORT: 5432
